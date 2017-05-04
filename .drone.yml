@@ -1,15 +1,13 @@
-matrix:
-  PYTHON_IMAGE:
-    - kszucs/miniconda2
-    - kszucs/miniconda3
-
 services:
-  clickhouse:
-    image: yandex/clickhouse-server
+  database:
+    image: mysql
+    environment:
+      - MYSQL_DATABASE=test
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
 
 pipeline:
   build:
-    image: ${PYTHON_IMAGE}
+    image: kszucs/miniconda3
     commands:
-      - conda install -y -q libgcc pandas numpy requests
+      - sleep 10
       - python setup.py test

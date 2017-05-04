@@ -68,7 +68,8 @@ class AioDatabase(Database):
 
     async def _create_connection(self, loop=None):
         with self.exception_wrapper:
-            return await self._connect(self.database, loop=loop, **self.connect_kwargs)
+            return await self._connect(self.database, loop=loop,
+                                       **self.connect_kwargs)
 
     async def execute_sql(self, sql, params=None, require_commit=True):
         with self.exception_wrapper:

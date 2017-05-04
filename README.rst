@@ -11,6 +11,10 @@ Limitations (hopefully resolved in a couple of weeks):
 - currently just aiomysql supported
 - untested transactions
 
+More thorough testing is on the way.
+
+Any feedback would be greatly appreciated!
+
 
 Install
 -------

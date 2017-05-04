@@ -63,7 +63,7 @@ Usage
    await User.select().count()
 
    # insert
-   user = await User.insert(username='kszucs')
+   user = await User.create(username='kszucs')
 
    # modify
    user.username = 'krisztian'

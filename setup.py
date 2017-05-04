@@ -14,8 +14,8 @@ setup(name='aiopeewee',
       license='BSD',
       keywords='',
       install_requires=['peewee==2.9.1', 'aiomysql'],
-      tests_require=['pytest'],
-      setup_requires=['pytest-runner', 'pytest-aiohttp'],
+      tests_require=['pytest-aiohttp', 'pytest'],
+      setup_requires=['pytest-runner'],
       long_description=(open('README.rst').read() if exists('README.rst')
                         else ''),
       zip_safe=False)

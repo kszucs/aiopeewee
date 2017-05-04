@@ -77,6 +77,50 @@ Usage
 
    # see more in the tests
 
+
+ManyToMany
+----------
+
+Note that `AioManyToManyField` must be used instead of `ManyToMany`.
+
+
+.. code:: python
+
+    from aiopeewee import AioManyToManyField
+
+
+    class User(AioModel):
+        username = CharField(unique=True)
+
+        class Meta:
+            database = db
+
+
+    class Note(AioModel):
+        text = TextField()
+        users = AioManyToManyField(User)
+
+        class Meta:
+            database = db
+
+
+    NoteUserThrough = Note.users.get_through_model()
+
+
+    async for user in note.users:
+        # do something with the users
+
+
+Currently the only limitation I'm awere of immidiate setting of instance relation must be replaced with a method call:
+
+.. code:: python
+
+    # original, which is not supported
+    charlie.notes = [n2, n3]
+
+    # use instead
+    await charlie.notes.set([n2, n3])
+
          
 .. _peewee: http://docs.peewee-orm.com/en/latest/
 .. _torpeewee: https://github.com/snower/torpeewee

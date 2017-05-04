@@ -1,0 +1,15 @@
+matrix:
+  PYTHON_IMAGE:
+    - kszucs/miniconda2
+    - kszucs/miniconda3
+
+services:
+  clickhouse:
+    image: yandex/clickhouse-server
+
+pipeline:
+  build:
+    image: ${PYTHON_IMAGE}
+    commands:
+      - conda install -y -q libgcc pandas numpy requests
+      - python setup.py test

@@ -10,6 +10,7 @@ pipeline:
     image: kszucs/miniconda3
     commands:
       - sleep 10
+      - pip install uvloop  # not a dependency
       - python setup.py test
 
   pypi:

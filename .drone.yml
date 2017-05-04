@@ -9,7 +9,7 @@ pipeline:
   build:
     image: kszucs/miniconda3
     commands:
-      - sleep 10
+      - sleep 10  # wait for mysql to start
       - pip install uvloop  # not a dependency
       - python setup.py test
 

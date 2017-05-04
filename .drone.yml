@@ -13,11 +13,11 @@ pipeline:
       - pip install uvloop  # not a dependency
       - python setup.py test
 
-  pypi:
-    repository: https://pypi.python.org/pypi
-    username: ${PYPI_USERNAME}
-    password: ${PYPI_PASSWORD}
-    distributions:
-      - sdist
-    when:
-      event: [tag]
+  # pypi:
+  #   repository: https://pypi.python.org/pypi
+  #   username: ${PYPI_USERNAME}
+  #   password: ${PYPI_PASSWORD}
+  #   distributions:
+  #     - sdist
+  #   when:
+  #     event: [tag]

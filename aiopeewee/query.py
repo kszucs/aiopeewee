@@ -24,6 +24,9 @@ class AioQuery(Query):
         else:
             return row
 
+    def __await__(self):
+        return self.execute().__await__()
+
     def __iter__(self):
         raise NotImplementedError()
 
@@ -80,6 +83,9 @@ class AioSelectQuery(AioQuery, SelectQuery):
         qr = await self.execute()
         return await qr.all()
 
+    def __await__(self):
+        return self.all().__await__()
+
     async def exists(self):
         clone = self.paginate(1, 1)
         clone._select = [SQL('1')]
@@ -122,9 +128,6 @@ class AioSelectQuery(AioQuery, SelectQuery):
             return self._qr
         else:
             return self._qr
-
-    def __await__(self):
-        return self.all().__await__()
 
     async def iterator(self):
         raise NotImplementedError()

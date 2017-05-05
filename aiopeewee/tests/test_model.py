@@ -235,7 +235,7 @@ async def test_insert_many(loop):
     iq = await User.insert_many([
         {User.username: 'u6'},
         {User.username: 'u7'},
-        {'username': 'u8'}]).execute()
+        {'username': 'u8'}])
 
     sq = User.select(User.username).order_by(User.username)
     assert [u.username async for u in sq] == ['u1', 'u2', 'u3', 'u4',
@@ -252,7 +252,7 @@ async def test_delete(loop):
     await User.create_users(5)
     dq = User.delete().where(User.username << ['u1', 'u2', 'u3'])
     assert await User.select().count() == 5
-    nr = await dq.execute()
+    nr = await dq
     assert nr == 3
     assert [u.username async for u in User.select()] == ['u4', 'u5']
 

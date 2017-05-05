@@ -5,7 +5,7 @@ from os.path import exists
 
 
 setup(name='aiopeewee',
-      version='0.3.2',
+      version='0.3.3',
       packages=['aiopeewee'],
       description='Async Peewee',
       url='http://github.com/kszucs/aiopeewee',

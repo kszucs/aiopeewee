@@ -29,53 +29,53 @@ Usage
 
 .. code:: python
 
-   from aiopeewee import AioModel, AioMySQLDatabase
-   from peewee import CharField, TextField, DateTimeField
-   from peewee import ForeignKeyField, PrimaryKeyField
+    from aiopeewee import AioModel, AioMySQLDatabase
+    from peewee import CharField, TextField, DateTimeField
+    from peewee import ForeignKeyField, PrimaryKeyField
 
 
-   db = AioMySQLDatabase('test', host='127.0.0.1', port=3306,
+    db = AioMySQLDatabase('test', host='127.0.0.1', port=3306,
                          user='root', password='')
 
 
-   class User(AioModel):
-       username = CharField()
+    class User(AioModel):
+        username = CharField()
 
-       class Meta:
-           database = db
+        class Meta:
+            database = db
 
 
-   class Blog(AioModel):
-       user = ForeignKeyField(User)
-       title = CharField(max_length=25)
-       content = TextField(default='')
-       pub_date = DateTimeField(null=True)
-       pk = PrimaryKeyField()
+    class Blog(AioModel):
+        user = ForeignKeyField(User)
+        title = CharField(max_length=25)
+        content = TextField(default='')
+        pub_date = DateTimeField(null=True)
+        pk = PrimaryKeyField()
 
-       class Meta:
-           database = db
-
+        class Meta:
+            database = db
+ 
    
-   # create connection pool
-   await db.connect(loop)
+    # create connection pool
+    await db.connect(loop)
 
-   # count
-   await User.select().count()
+    # count
+    await User.select().count()
 
-   # insert
-   user = await User.create(username='kszucs')
+    # insert
+    user = await User.create(username='kszucs')
 
-   # modify
-   user.username = 'krisztian'
-   await user.save()
+    # modify
+    user.username = 'krisztian'
+    await user.save()
 
-   # async iteration on blog set
-   [b.title async for b in user.blog_set.order_by(Blog.title)]
+    # async iteration on blog set
+    [b.title async for b in user.blog_set.order_by(Blog.title)]
 
-   # close connection pool
-   await db.close()
+    # close connection pool
+    await db.close()
 
-   # see more in the tests
+    # see more in the tests
 
 
 ManyToMany
@@ -109,6 +109,18 @@ Note that `AioManyToManyField` must be used instead of `ManyToMany`.
 
     async for user in note.users:
         # do something with the users
+
+
+Serializing
+-----------
+
+Converting to dict requires the asyncified version of `model_to_dict` 
+
+.. code:: python
+
+    from aiopeewee import model_to_dict
+
+    serialized = await model_to_dict(user)
 
 
 Currently the only limitation I'm awere of immidiate setting of instance relation must be replaced with a method call:

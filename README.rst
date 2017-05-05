@@ -111,7 +111,7 @@ Note that `AioManyToManyField` must be used instead of `ManyToMany`.
         # do something with the users
 
 
-Currently the only limitation I'm awere of immidiate setting of instance relation must be replaced with a method call:
+Currently the only limitation I'm aware of immidiate setting of instance relation must be replaced with a method call:
 
 .. code:: python
 

@@ -111,6 +111,17 @@ Note that `AioManyToManyField` must be used instead of `ManyToMany`.
         # do something with the users
 
 
+Currently the only limitation I'm awere of immidiate setting of instance relation must be replaced with a method call:
+
+.. code:: python
+
+    # original, which is not supported
+    charlie.notes = [n2, n3]
+
+    # use instead
+    await charlie.notes.set([n2, n3])
+
+
 Serializing
 -----------
 
@@ -121,17 +132,6 @@ Converting to dict requires the asyncified version of `model_to_dict`
     from aiopeewee import model_to_dict
 
     serialized = await model_to_dict(user)
-
-
-Currently the only limitation I'm awere of immidiate setting of instance relation must be replaced with a method call:
-
-.. code:: python
-
-    # original, which is not supported
-    charlie.notes = [n2, n3]
-
-    # use instead
-    await charlie.notes.set([n2, n3])
 
          
 .. _peewee: http://docs.peewee-orm.com/en/latest/

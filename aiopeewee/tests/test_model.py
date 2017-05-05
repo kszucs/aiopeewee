@@ -1,5 +1,6 @@
 import pytest
 
+from aitertools import alist
 from datetime import datetime
 from aiopeewee import AioModel, AioMySQLDatabase
 from peewee import (ForeignKeyField, IntegerField, CharField,
@@ -161,6 +162,30 @@ async def test_select_all(loop):
 
     # TODO: await blogs[0] fails with cannot await again
     # must be a caching issue
+
+    await db.drop_tables([User, Blog], safe=True)
+    await db.close()
+
+
+async def test_select_all_fetchall(loop):
+    from aitertools import aiter
+    await db.connect(loop)
+    await db.create_tables([User, Blog], safe=True)
+    await create_users_blogs(2, 2)
+
+    all_cols = SQL('*')
+
+    query0 = Blog.select(all_cols).order_by(Blog.pk)
+    blogs0 = await alist(query0)
+
+    query1 = Blog.select(all_cols).order_by(Blog.pk)
+    blogs1 = await query1
+
+    assert isinstance(blogs0, list)
+    assert isinstance(blogs1, list)
+    assert [b.title for b in blogs0] == ['b-0-0', 'b-0-1', 'b-1-0', 'b-1-1']
+    assert [b.title for b in blogs1] == ['b-0-0', 'b-0-1', 'b-1-0', 'b-1-1']
+    assert blogs0 == blogs1
 
     await db.drop_tables([User, Blog], safe=True)
     await db.close()

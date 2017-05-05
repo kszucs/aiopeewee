@@ -44,12 +44,6 @@ class AioRawQuery(AioQuery, RawQuery):
             self._qr = QRW(self.model_class, await self._execute(), None)
         return self._qr
 
-    def __iter__(self):
-        raise NotImplementedError()
-
-    async def __aiter__(self):
-        return await self.execute()
-
 
 class AioSelectQuery(AioQuery, SelectQuery):
 
@@ -81,6 +75,10 @@ class AioSelectQuery(AioQuery, SelectQuery):
         wrapped = 'SELECT COUNT(1) FROM (%s) AS wrapped_select' % sql
         rq = self.model_class.raw(wrapped, *params)
         return await rq.scalar() or 0
+
+    async def all(self):
+        qr = await self.execute()
+        return await qr.all()
 
     async def exists(self):
         clone = self.paginate(1, 1)
@@ -125,29 +123,17 @@ class AioSelectQuery(AioQuery, SelectQuery):
         else:
             return self._qr
 
-    async def __aiter__(self):
-        return await self.execute()
+    def __await__(self):
+        return self.all().__await__()
 
     async def iterator(self):
         raise NotImplementedError()
-        return iter(await (self.execute()).iterator())
 
     def __getitem__(self, value):
         raise NotImplementedError()
-        # # TODO
-        # res = self.execute()
-        # if isinstance(value, slice):
-        #     index = value.stop
-        # else:
-        #     index = value
-        # if index is not None:
-        #     index = index + 1 if index >= 0 else None
-        # await res.fill_cache(index)
-        # return res._result_cache[value]
 
     def __len__(self):
-        # TODO
-        return len(self.execute())
+        raise NotImplementedError()
 
     def __hash__(self):
         return id(self)
@@ -188,7 +174,7 @@ class AioUpdateQuery(_AioWriteQuery, UpdateQuery):
             raise ValueError('UPDATE queries cannot be iterated over unless '
                              'they specify a RETURNING clause, which is not '
                              'supported by your database.')
-        return iter(await self.execute())
+        return await self.execute()
 
 
 class AioInsertQuery(_AioWriteQuery, InsertQuery):

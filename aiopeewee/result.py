@@ -18,7 +18,7 @@ class AioResultIterator(object):
             self.qrw._result_cache.append(obj)
             self.qrw._ct += 1
         else:
-            raise StopIteration
+            raise StopAsyncIteration
         self._idx += 1
         return obj
 
@@ -31,14 +31,30 @@ class AioQueryResultWrapper(QueryResultWrapper):
         else:
             return AioResultIterator(self)
 
+    def __await__(self):
+        return self.all().__await__()
+
+    async def all(self):
+        if not self._initialized:
+            self.initialize(self.cursor.description)
+            self._initialized = True
+
+        rows = [self.process_row(row) for row in await self.cursor.fetchall()]
+        return rows
+        self._result_cache = rows
+        self._populated = True
+        self._idx = self._ct = len(rows)
+        return rows
+
     @property
     def count(self):
-        # TODO:
-        self.fill_cache()
-        return self._ct
+        raise NotImplementedError()
+        # self.fill_cache()
+        # return self._ct
 
     def __len__(self):
-        return self.count
+        raise NotImplementedError()
+        # return self.count
 
     async def iterate(self):
         row = await self.cursor.fetchone()
@@ -54,8 +70,9 @@ class AioQueryResultWrapper(QueryResultWrapper):
         return self.process_row(row)
 
     def iterator(self):
-        while True:
-            yield self.iterate()
+        raise NotImplementedError()
+        # while True:
+        #     yield self.iterate()
 
     async def __anext__(self):
         if self._idx < self._ct:
@@ -63,7 +80,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
             self._idx += 1
             return inst
         elif self._populated:
-            raise StopIteration
+            raise StopAsyncIteration
 
         obj = await self.iterate()
         self._result_cache.append(obj)
@@ -78,7 +95,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
         self._idx = self._ct
         while not self._populated and (n > self._ct):
             try:
-                await self.__anext__()  # next(self)
+                await self.__anext__()
             except StopIteration:
                 break
 
@@ -121,7 +138,7 @@ class AioAggregateQueryResultWrapper(AioModelQueryResultWrapper,
             self._populated = True
             if not getattr(self.cursor, 'name', None):
                 await self.cursor.close()
-            raise StopIteration
+            raise StopAsyncIteration
         elif not self._initialized:
             self.initialize(self.cursor.description)
             self._initialized = True

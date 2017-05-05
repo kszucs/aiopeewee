@@ -62,6 +62,13 @@ Usage
     # count
     await User.select().count()
 
+    # async iteration on select query
+    async for user in User.select():
+        print(user)
+
+    # fetch all records as a list from a query in one pass
+    users = await User.select()
+
     # insert
     user = await User.create(username='kszucs')
 

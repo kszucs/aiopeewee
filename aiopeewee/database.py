@@ -2,6 +2,7 @@ import asyncio
 
 from peewee import Database, ExceptionWrapper, basestring
 from peewee import sort_models_topologically, merge_dict
+from peewee import OperationalError
 from peewee import (RESULTS_NAIVE, RESULTS_TUPLES, RESULTS_DICTS,
                     RESULTS_AGGREGATE_MODELS)
 

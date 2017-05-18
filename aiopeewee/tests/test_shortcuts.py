@@ -2,7 +2,7 @@ from peewee import CharField, TextField, ForeignKeyField, CompositeKey
 from aiopeewee import AioModel, AioMySQLDatabase, model_to_dict
 
 
-db = AioMySQLDatabase('test', host='127.0.0.1', port=3306,
+db = AioMySQLDatabase('test', host='database', port=3306,
                       user='root', password='')
 
 

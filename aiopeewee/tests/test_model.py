@@ -11,7 +11,7 @@ from peewee import (ForeignKeyField, IntegerField, CharField,
 pytestmark = pytest.mark.asyncio
 
 
-db = AioMySQLDatabase('test', host='database', port=3306,
+db = AioMySQLDatabase('test', host='localhost', port=3306,
                       user='root', password='')
 
 
@@ -260,6 +260,17 @@ async def test_delete(loop):
 
     await db.drop_tables([User], safe=True)
     await db.close()
+
+
+async def test_get_or_create(loop):
+    await db.connect(loop)
+    await db.create_tables([User], safe=True)
+
+    u10, created = await User.get_or_create(username='u10')
+    assert created
+
+    u10_x, created = await User.get_or_create(username='u10')
+    assert not created
 
 
 async def test_related_name(loop):

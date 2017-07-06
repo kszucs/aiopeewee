@@ -1,7 +1,11 @@
+import pytest
 from aitertools import alist
 from aiopeewee import AioModel, AioMySQLDatabase, AioManyToManyField
 from peewee import (ForeignKeyField, IntegerField, CharField,
                     DateTimeField, TextField, PrimaryKeyField)
+
+
+pytestmark = pytest.mark.asyncio
 
 
 db = AioMySQLDatabase('test', host='database', port=3306,

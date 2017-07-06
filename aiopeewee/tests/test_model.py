@@ -8,6 +8,9 @@ from peewee import (ForeignKeyField, IntegerField, CharField,
                     SQL)
 
 
+pytestmark = pytest.mark.asyncio
+
+
 db = AioMySQLDatabase('test', host='database', port=3306,
                       user='root', password='')
 

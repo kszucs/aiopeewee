@@ -1,6 +1,7 @@
-from peewee import Model, ModelAlias
+from peewee import Model, ModelAlias, IntegrityError
 
-from .query import *
+from .query import (AioSelectQuery, AioUpdateQuery, AioInsertQuery,
+                    AioDeleteQuery, AioRawQuery, AioNoopSelectQuery)
 
 
 class AioModelAlias(ModelAlias):
@@ -144,7 +145,7 @@ class AioModel(Model):
 
     @classmethod
     def noop(cls, *args, **kwargs):
-        return NoopSelectQuery(cls, *args, **kwargs)
+        return AioNoopSelectQuery(cls, *args, **kwargs)
 
     async def save(self, force_insert=False, only=None):
         field_dict = dict(self._data)
@@ -197,4 +198,3 @@ class AioModel(Model):
                 else:
                     await model.delete().where(query).execute()
         return await self.delete().where(self._pk_expr()).execute()
-

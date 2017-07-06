@@ -1,5 +1,5 @@
 from asyncio import iscoroutine
-from peewee import ForeignKeyField
+from peewee import ForeignKeyField, Field, Node
 from playhouse.shortcuts import _clone_set
 
 

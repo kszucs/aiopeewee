@@ -1,7 +1,7 @@
 import re
 from playhouse.fields import (ManyToManyField, ManyToManyQuery,
                               ManyToManyFieldDescriptor, DeferredThroughModel)
-from peewee import Proxy, ForeignKeyField, SelectQuery, Model
+from peewee import Proxy, ForeignKeyField, SelectQuery, Model, SQL
 
 from .model import AioModel
 from .query import AioSelectQuery

@@ -1,5 +1,9 @@
+import pytest
 from peewee import CharField, TextField, ForeignKeyField, CompositeKey
 from aiopeewee import AioModel, AioMySQLDatabase, model_to_dict
+
+
+pytestmark = pytest.mark.asyncio
 
 
 db = AioMySQLDatabase('test', host='database', port=3306,

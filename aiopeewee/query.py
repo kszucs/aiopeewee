@@ -1,6 +1,8 @@
-from peewee import Query, RawQuery, SelectQuery, NoopSelectQuery
+import operator
+from peewee import SQL, Query, RawQuery, SelectQuery, NoopSelectQuery
 from peewee import CompoundSelect, DeleteQuery, UpdateQuery, InsertQuery
 from peewee import _WriteQuery
+from peewee import RESULTS_TUPLES, RESULTS_DICTS, RESULTS_NAIVE
 
 
 class AioQuery(Query):
@@ -58,7 +60,7 @@ class AioSelectQuery(AioQuery, SelectQuery):
                     'Your database does not support %s' % operator)
             return AioCompoundSelect(self.model_class, self, operator, other)
         return inner
- 
+
     async def aggregate(self, aggregation=None, convert=True):
         return await self._aggregate(aggregation).scalar(convert=convert)
 
@@ -96,7 +98,7 @@ class AioSelectQuery(AioQuery, SelectQuery):
         try:
             qr = await clone.execute()
             return await qr.__anext__()
-        except StopIteration:
+        except StopAsyncIteration:
             raise self.model_class.DoesNotExist(
                 'Instance matching query does not exist:\nSQL: %s\nPARAMS: %s'
                 % self.sql())

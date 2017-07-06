@@ -1,6 +1,6 @@
 import uuid
 from functools import wraps
-from peewee import ExecutionContext, Using
+# from peewee import ExecutionContext, Using
 
 
 class _aio_callable_context_manager(object):
@@ -14,59 +14,59 @@ class _aio_callable_context_manager(object):
         return inner
 
 
-class AioExecutionContext(_aio_callable_context_manager, ExecutionContext):
+# class AioExecutionContext(_aio_callable_context_manager, ExecutionContext):
 
-    def __enter__(self):
-        raise NotImplementedError()
+#     def __enter__(self):
+#         raise NotImplementedError()
 
-    async def __aenter__(self):
-        async with self.database._conn_lock:
-            self.database.push_execution_context(self)
-            self.connection = await self.database._connect(
-                self.database.database,
-                **self.database.connect_kwargs)
-            if self.with_transaction:
-                self.txn = self.database.transaction()
-                await self.txn.__aenter__()
-        return self
+#     async def __aenter__(self):
+#         async with self.database._conn_lock:
+#             self.database.push_execution_context(self)
+#             self.connection = await self.database._connect(
+#                 self.database.database,
+#                 **self.database.connect_kwargs)
+#             if self.with_transaction:
+#                 self.txn = self.database.transaction()
+#                 await self.txn.__aenter__()
+#         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        raise NotImplementedError()
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         raise NotImplementedError()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        async with self.database._conn_lock:
-            if self.connection is None:
-                self.database.pop_execution_context()
-            else:
-                try:
-                    if self.with_transaction:
-                        if not exc_type:
-                            self.txn.commit(False)
-                        await self.txn.__aexit__(exc_type, exc_val, exc_tb)
-                finally:
-                    self.database.pop_execution_context()
-                    await self.database._close(self.connection)
+#     async def __aexit__(self, exc_type, exc_val, exc_tb):
+#         async with self.database._conn_lock:
+#             if self.connection is None:
+#                 self.database.pop_execution_context()
+#             else:
+#                 try:
+#                     if self.with_transaction:
+#                         if not exc_type:
+#                             self.txn.commit(False)
+#                         await self.txn.__aexit__(exc_type, exc_val, exc_tb)
+#                 finally:
+#                     self.database.pop_execution_context()
+#                     await self.database._close(self.connection)
 
 
-class AioUsing(AioExecutionContext, Using):
+# class AioUsing(AioExecutionContext, Using):
 
-    def __enter__(self):
-        raise NotImplementedError()
+#     def __enter__(self):
+#         raise NotImplementedError()
 
-    async def __aenter__(self):
-        self._orig = []
-        for model in self.models:
-            self._orig.append(model._meta.database)
-            model._meta.database = self.database
-        return super(Using, self).__aenter__()
+#     async def __aenter__(self):
+#         self._orig = []
+#         for model in self.models:
+#             self._orig.append(model._meta.database)
+#             model._meta.database = self.database
+#         return super(Using, self).__aenter__()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        raise NotImplementedError()
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         raise NotImplementedError()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await super(Using, self).__aexit__(exc_type, exc_val, exc_tb)
-        for i, model in enumerate(self.models):
-            model._meta.database = self._orig[i]
+#     async def __aexit__(self, exc_type, exc_val, exc_tb):
+#         await super(Using, self).__aexit__(exc_type, exc_val, exc_tb)
+#         for i, model in enumerate(self.models):
+#             model._meta.database = self._orig[i]
 
 
 class _aio_atomic(_aio_callable_context_manager):

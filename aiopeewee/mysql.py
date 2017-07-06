@@ -9,7 +9,7 @@ from .database import AioDatabase
 
 class AioMySQLDatabase(AioDatabase, MySQLDatabase):
 
-    async def _connect(self, database, loop=None, **kwargs):
+    async def _connect(self, database, **kwargs):
         if not mysql:
             raise ImproperlyConfigured('MySQLdb or PyMySQL must be installed.')
         conn_kwargs = {
@@ -17,7 +17,7 @@ class AioMySQLDatabase(AioDatabase, MySQLDatabase):
             'use_unicode': True,
         }
         conn_kwargs.update(kwargs)
-        return await aiomysql.create_pool(db=database, loop=loop, **conn_kwargs)
+        return await aiomysql.create_pool(db=database, **conn_kwargs)
 
     async def get_tables(self, schema=None):
         async with self.get_conn() as conn:

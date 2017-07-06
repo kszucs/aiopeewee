@@ -153,10 +153,12 @@ class AioDatabase(Database):
                 self.closed = True
                 await self.pool.wait_closed()
 
-    async def connect(self, loop=None):
+    async def connect(self, safe=True):
         if self.deferred:
             raise OperationalError('Database has not been initialized')
         if not self.closed:
+            if safe:
+                return
             raise OperationalError('Connection already open')
 
         with self.exception_wrapper:

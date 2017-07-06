@@ -1,8 +1,7 @@
 import pytest
 from aitertools import alist
 from aiopeewee import AioModel, AioMySQLDatabase, AioManyToManyField
-from peewee import (ForeignKeyField, IntegerField, CharField,
-                    DateTimeField, TextField, PrimaryKeyField)
+from peewee import CharField, TextField
 
 
 pytestmark = pytest.mark.asyncio
@@ -66,7 +65,7 @@ async def test_set_values(loop):
     await create_users_notes()
 
     charlie = await User.get(User.username == 'charlie')
-    huey = await User.get(User.username == 'huey')
+    await User.get(User.username == 'huey')
     n1, n2, n3, n4, n5 = await alist(Note.select().order_by(Note.text))
 
     await assert_notes(charlie.notes, [1, 2])

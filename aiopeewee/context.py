@@ -1,8 +1,10 @@
+from functools import wraps
 from peewee import ExecutionContext, Using, _atomic, transaction, savepoint
 
 
 class _aio_callable_context_manager(object):
     __slots__ = ()
+
     def __call__(self, fn):
         @wraps(fn)
         async def inner(*args, **kwargs):
@@ -77,16 +79,19 @@ class aio_transaction(_aio_callable_context_manager, transaction):
 
     async def commit(self, begin=True):
         await self.db.commit()
-        if begin: await self._begin()
+        if begin:
+            await self._begin()
 
     async def rollback(self, begin=True):
         await self.db.rollback()
-        if begin: await self._begin()
+        if begin:
+            await self._begin()
 
     async def __aenter__(self):
         self.autocommit = self.db.get_autocommit()
         self.db.set_autocommit(False)
-        if self.db.transaction_depth() == 0: await self._begin()
+        if self.db.transaction_depth() == 0:
+            await self._begin()
         self.db.push_transaction(self)
         return self
 
@@ -115,7 +120,8 @@ class aio_savepoint(_aio_callable_context_manager, savepoint):
 
     async def commit(self, begin=True):
         await self._execute('RELEASE SAVEPOINT %s;' % self.quoted_sid)
-        if begin: await self._begin()
+        if begin:
+            await self._begin()
 
     async def rollback(self):
         await self._execute('ROLLBACK TO SAVEPOINT %s;' % self.quoted_sid)

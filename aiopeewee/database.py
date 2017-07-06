@@ -31,7 +31,7 @@ class AioDatabase(Database):
         self.exception_wrapper = ExceptionWrapper(self.exceptions)
 
     def is_closed(self):
-         return self._closed
+        return self._closed
 
     async def get_conn(self):
         if self._closed:

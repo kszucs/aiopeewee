@@ -12,8 +12,8 @@ class AioQuery(Query):
 
     async def _execute(self):
         sql, params = self.sql()
-        return await self.database.execute_sql(sql, params,
-                                               self.require_commit)
+        async with self.database.get_conn() as conn:
+            return await conn.execute_sql(sql, params, self.require_commit)
 
     async def scalar(self, as_tuple=False, convert=False):
         if convert:

@@ -267,10 +267,13 @@ async def test_get_or_create(loop):
     await db.create_tables([User], safe=True)
 
     u10, created = await User.get_or_create(username='u10')
-    assert created
+    assert created is True
 
     u10_x, created = await User.get_or_create(username='u10')
-    assert not created
+    assert created is False
+
+    await db.drop_tables([User], safe=True)
+    await db.close()
 
 
 async def test_related_name(loop):

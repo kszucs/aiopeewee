@@ -7,7 +7,7 @@ from peewee import CharField, TextField
 pytestmark = pytest.mark.asyncio
 
 
-db = AioMySQLDatabase('test', host='database', port=3306,
+db = AioMySQLDatabase('test', host='localhost', port=3306,
                       user='root', password='')
 
 

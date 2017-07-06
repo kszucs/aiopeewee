@@ -15,8 +15,10 @@ from .result import (AioNaiveQueryResultWrapper, AioModelQueryResultWrapper,
 
 class AioConnection(object):
 
-    def __init__(self, acquirer, exception_wrapper, autocommit=None):
+    def __init__(self, acquirer, exception_wrapper,
+                 autocommit=None, autorollback=None):
         self.autocommit = autocommit
+        self.autorollback = autorollback
         self.acquirer = acquirer
         self.closed = True
         self.conn = None
@@ -141,6 +143,7 @@ class AioDatabase(Database):
 
         return AioConnection(self.pool.acquire(),
                              autocommit=self.autocommit,
+                             autorollback=self.autorollback,
                              exception_wrapper=self.exception_wrapper)
 
     async def close(self):

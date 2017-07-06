@@ -8,6 +8,9 @@ from peewee import (ForeignKeyField, IntegerField, CharField,
                     SQL)
 
 
+pytestmark = pytest.mark.asyncio
+
+
 db = AioMySQLDatabase('test', host='database', port=3306,
                       user='root', password='')
 
@@ -56,8 +59,8 @@ async def create_users_blogs(n=10, nb=5):
     for i in range(n):
         u = await User.create(username='u%d' % i)
         for j in range(nb):
-            b = await Blog.create(title='b-%d-%d' % (i, j),
-                                  content=str(j), user=u)
+            await Blog.create(title='b-%d-%d' % (i, j),
+                              content=str(j), user=u)
 
 
 async def test_table_creation(loop):
@@ -168,7 +171,6 @@ async def test_select_all(loop):
 
 
 async def test_select_all_fetchall(loop):
-    from aitertools import aiter
     await db.connect(loop)
     await db.create_tables([User, Blog], safe=True)
     await create_users_blogs(2, 2)
@@ -202,7 +204,7 @@ async def test_insert(loop):
     assert uid > 0
 
     assert await User.select().count() == 1
-    u = await User.get(User.id==uid)
+    u = await User.get(User.id == uid)
     u.username == 'u1'
 
     with pytest.raises(KeyError):
@@ -266,12 +268,15 @@ async def test_related_name(loop):
 
     u1 = await User.create(username='u1')
     u2 = await User.create(username='u2')
-    b11 = await Blog.create(user=u1, title='b11')
-    b12 = await Blog.create(user=u1, title='b12')
-    b2 = await Blog.create(user=u2, title='b2')
+    await Blog.create(user=u1, title='b11')
+    await Blog.create(user=u1, title='b12')
+    await Blog.create(user=u2, title='b2')
 
-    assert [b.title async for b in u1.blog_set.order_by(Blog.title)] == ['b11', 'b12']
-    assert [b.title async for b in u2.blog_set.order_by(Blog.title)] == ['b2']
+    result = [b.title async for b in u1.blog_set.order_by(Blog.title)]
+    assert result == ['b11', 'b12']
+
+    result = [b.title async for b in u2.blog_set.order_by(Blog.title)]
+    assert result == ['b2']
 
     await db.drop_tables([User, Blog], safe=True)
     await db.close()

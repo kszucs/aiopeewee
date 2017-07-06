@@ -1,5 +1,8 @@
 import aiomysql
-from peewee import MySQLDatabase
+
+from peewee import mysql, ImproperlyConfigured
+from peewee import (MySQLDatabase, IndexMetadata,
+                    ColumnMetadata, ForeignKeyMetadata)
 
 from .database import AioDatabase
 
@@ -7,8 +10,8 @@ from .database import AioDatabase
 class AioMySQLDatabase(AioDatabase, MySQLDatabase):
 
     async def _connect(self, database, loop=None, **kwargs):
-        # if not mysql:
-        #     raise ImproperlyConfigured('MySQLdb or PyMySQL must be installed.')
+        if not mysql:
+            raise ImproperlyConfigured('MySQLdb or PyMySQL must be installed.')
         conn_kwargs = {
             'charset': 'utf8',
             'use_unicode': True,
@@ -60,6 +63,5 @@ class AioMySQLDatabase(AioDatabase, MySQLDatabase):
             ForeignKeyMetadata(column, dest_table, dest_column, table)
             for column, dest_table, dest_column in await cursor.fetchall()]
 
-    # TODO
     def get_binary_type(self):
         return mysql.Binary

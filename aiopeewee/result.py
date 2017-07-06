@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from peewee import QueryResultWrapper, ExtQueryResultWrapper
 from peewee import TuplesQueryResultWrapper, DictQueryResultWrapper
 from peewee import ModelQueryResultWrapper, AggregateQueryResultWrapper

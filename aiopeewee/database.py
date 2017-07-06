@@ -186,10 +186,9 @@ class AioDatabase(Database):
     def atomic(self, transaction_type=None):
         return _aio_atomic(self.get_conn(), transaction_type)
 
-    # TODO
-    # def transaction(self, transaction_type=None):
-    #     return aio_transaction(self, transaction_type)
-    # commit_on_success = property(transaction)
+    def transaction(self, transaction_type=None):
+        return aio_transaction(self, transaction_type)
+    commit_on_success = property(transaction)
 
     # def savepoint(self, sid=None):
     #     if not self.savepoints:
@@ -269,6 +268,11 @@ class AioDatabase(Database):
             qc = self.compiler()
             async with self.get_conn() as conn:
                 return await conn.execute_sql(*qc.drop_sequence(seq))
+
+    async def execute_sql(self, sql, params=None, require_commit=True):
+        async with self.get_conn() as conn:
+            return await conn.execute_sql(sql, params,
+                                          require_commit=require_commit)
 
     def extract_date(self, date_part, date_field):
         return fn.EXTRACT(Clause(date_part, R('FROM'), date_field))

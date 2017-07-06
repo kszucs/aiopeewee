@@ -2,7 +2,7 @@ import sys
 import pytest
 from functools import partial
 from aitertools import aiter
-from models import db, User, Blog, EmptyModel, NoPKModel, TestModel
+from models import *
 from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKeyField
 from aiopeewee import AioModel as Model
 from aiopeewee import AioMySQLDatabase
@@ -449,21 +449,24 @@ async def test_callable_related_name():
     assert not hasattr(Foo, 'bar_set')
     assert not hasattr(Foo, 'baz_set')
 
-#     def test_fk_exceptions(self):
-#         c1 = Category.create(name='c1')
-#         c2 = Category.create(parent=c1, name='c2')
-#         assert c1.parent, None)
-#         assert c2.parent, c1)
 
-#         c2_db = Category.get(Category.id == c2.id)
-#         assert c2_db.parent, c1)
+# async def test_fk_exceptions(flushdb):
+#     c1 = await Category.create(name='c1')
+#     c2 = await Category.create(parent=c1, name='c2')
+#     assert c1.parent is None
+#     assert c2.parent is c1
 
-#         u = User.create(username='u1')
-#         b = Blog.create(user=u, title='b')
-#         b2 = Blog(title='b2')
+#     c2_db = await Category.get(Category.id == c2.id)
+#     assert await c2_db.parent == c1
 
-#         assert b.user, u)
-#         self.assertRaises(User.DoesNotExist, getattr, b2, 'user')
+#     u = await User.create(username='u1')
+#     b = await Blog.create(user=u, title='b')
+#     b2 = Blog(title='b2')
+
+#     assert b.user is u
+#     with pytest.raises(User.DoesNotExist):
+#         await b2.user
+
 
 #     def test_fk_cache_invalidated(self):
 #         u1 = User.create(username='u1')
@@ -483,20 +486,23 @@ async def test_callable_related_name():
 #         with self.assertQueryCount(0):
 #             assert blog.user.id, u2.id)
 
-#     def test_fk_ints(self):
-#         c1 = Category.create(name='c1')
-#         c2 = Category.create(name='c2', parent=c1.id)
-#         c2_db = Category.get(Category.id == c2.id)
-#         assert c2_db.parent, c1)
 
-#     def test_fk_object_id(self):
-#         c1 = Category.create(name='c1')
-#         c2 = Category.create(name='c2')
-#         c2.parent_id = c1.id
-#         c2.save()
-#         assert c2.parent, c1)
-#         c2_db = Category.get(Category.name == 'c2')
-#         assert c2_db.parent, c1)
+# async def test_fk_ints(flushdb):
+#     c1 = await Category.create(name='c1')
+#     c2 = await Category.create(name='c2', parent=c1.id)
+#     c2_db = await Category.get(Category.id == c2.id)
+#     assert await c2_db.parent == c1
+
+
+# async def test_fk_object_id(flushdb):
+#     c1 = await Category.create(name='c1')
+#     c2 = await Category.create(name='c2')
+#     c2.parent_id = c1.id
+#     await c2.save()
+#     assert c2.parent == c1
+#     c2_db = await Category.get(Category.name == 'c2')
+#     assert await c2_db.parent == c1
+
 
 #     def test_fk_caching(self):
 #         c1 = Category.create(name='c1')
@@ -562,25 +568,28 @@ async def test_callable_related_name():
 #         with self.assertQueryCount(1):
 #             assert result.user.id, u.id)
 
-#     def test_object_id_descriptor_naming(self):
-#         class Person(Model):
-#             pass
+async def test_object_id_descriptor_naming():
+    class Person(Model):
+        pass
 
-#         class Foo(Model):
-#             me = ForeignKeyField(Person, db_column='me', related_name='foo1')
-#             another = ForeignKeyField(Person, db_column='_whatever_',
-#                                       related_name='foo2')
-#             another2 = ForeignKeyField(Person, db_column='person_id',
-#                                        related_name='foo3')
-#             plain = ForeignKeyField(Person, related_name='foo4')
+    class Foo(Model):
+        me = ForeignKeyField(Person, db_column='me', related_name='foo1')
+        another = ForeignKeyField(Person, db_column='_whatever_',
+                                  related_name='foo2')
+        another2 = ForeignKeyField(Person, db_column='person_id',
+                                   related_name='foo3')
+        plain = ForeignKeyField(Person, related_name='foo4')
 
-#         self.assertTrue(Foo.me is Foo.me_id)
-#         self.assertTrue(Foo.another is Foo._whatever_)
-#         self.assertTrue(Foo.another2 is Foo.person_id)
-#         self.assertTrue(Foo.plain is Foo.plain_id)
+    assert Foo.me is Foo.me_id
+    assert Foo.another is Foo._whatever_
+    assert Foo.another2 is Foo.person_id
+    assert Foo.plain is Foo.plain_id
 
-#         self.assertRaises(AttributeError, lambda: Foo.another_id)
-#         self.assertRaises(AttributeError, lambda: Foo.another2_id)
+    with pytest.raises(AttributeError):
+        Foo.another_id
+
+    with pytest.raises(AttributeError):
+        Foo.another2_id
 
 #     def test_category_select_related_alias(self):
 #         g1 = Category.create(name='g1')
@@ -607,22 +616,6 @@ async def test_callable_related_name():
 #                 [(c.name, c.parent.name, c.parent.parent.name) for c in sq],
 #                 [('c1', 'p1', 'g1'), ('c11', 'p1', 'g1')])
 
-#     def test_creation(self):
-#         User.create_users(10)
-#         assert User.select().count(), 10)
-
-#     def test_saving(self):
-#         assert User.select().count(), 0)
-
-#         u = User(username='u1')
-#         assert u.save(), 1)
-#         u.username = 'u2'
-#         assert u.save(), 1)
-
-#         assert User.select().count(), 1)
-
-#         assert u.delete_instance(), 1)
-#         assert u.save(), 0)
 
 #     def test_save_fk(self):
 #         blog = Blog(title='b1', content='')
@@ -639,92 +632,114 @@ async def test_callable_related_name():
 #                        .get())
 #             assert blog_db.user.username, 'u1')
 
-#     def test_modify_model_cause_it_dirty(self):
-#         u = User(username='u1')
-#         u.save()
-#         self.assertFalse(u.is_dirty())
+async def test_creation(flushdb):
+    await User.create_users(10)
+    assert await User.select().count() == 10
 
-#         u.username = 'u2'
-#         self.assertTrue(u.is_dirty())
-#         assert u.dirty_fields, [User.username])
 
-#         u.save()
-#         self.assertFalse(u.is_dirty())
+async def test_saving(flushdb):
+    assert await User.select().count() == 0
 
-#         b = Blog.create(user=u, title='b1')
-#         self.assertFalse(b.is_dirty())
+    u = User(username='u1')
+    assert await u.save() == 1
+    u.username = 'u2'
+    assert await u.save() == 1
 
-#         b.user = u
-#         self.assertTrue(b.is_dirty())
-#         assert b.dirty_fields, [Blog.user])
+    assert await User.select().count() == 1
 
-#     def test_dirty_from_query(self):
-#         u1 = User.create(username='u1')
-#         b1 = Blog.create(title='b1', user=u1)
-#         b2 = Blog.create(title='b2', user=u1)
+    assert await u.delete_instance() == 1
+    assert await u.save() == 0
 
-#         u_db = User.get()
-#         self.assertFalse(u_db.is_dirty())
 
-#         b_with_u = (Blog
-#                     .select(Blog, User)
-#                     .join(User)
-#                     .where(Blog.title == 'b2')
-#                     .get())
-#         self.assertFalse(b_with_u.is_dirty())
-#         self.assertFalse(b_with_u.user.is_dirty())
+async def test_modify_model_cause_it_dirty(flushdb):
+    u = User(username='u1')
+    await u.save()
+    assert u.is_dirty() is False
 
-#         u_with_blogs = (User
-#                         .select(User, Blog)
-#                         .join(Blog)
-#                         .order_by(Blog.title)
-#                         .aggregate_rows())[0]
-#         self.assertFalse(u_with_blogs.is_dirty())
-#         for blog in u_with_blogs.blog_set:
-#             self.assertFalse(blog.is_dirty())
+    u.username = 'u2'
+    assert u.is_dirty() is True
+    assert u.dirty_fields == [User.username]
 
-#         b_with_users = (Blog
-#                         .select(Blog, User)
-#                         .join(User)
-#                         .order_by(Blog.title)
-#                         .aggregate_rows())
-#         b1, b2 = b_with_users
-#         self.assertFalse(b1.is_dirty())
-#         self.assertFalse(b1.user.is_dirty())
-#         self.assertFalse(b2.is_dirty())
-#         self.assertFalse(b2.user.is_dirty())
+    await u.save()
+    assert u.is_dirty() is False
 
-#     def test_save_only(self):
-#         u = User.create(username='u')
-#         b = Blog.create(user=u, title='b1', content='ct')
-#         b.title = 'b1-edit'
-#         b.content = 'ct-edit'
+    b = await Blog.create(user=u, title='b1')
+    assert b.is_dirty() is False
 
-#         b.save(only=[Blog.title])
+    b.user = u
+    assert b.is_dirty() is True
+    assert b.dirty_fields == [Blog.user]
 
-#         b_db = Blog.get(Blog.pk == b.pk)
-#         assert b_db.title, 'b1-edit')
-#         assert b_db.content, 'ct')
 
-#         b = Blog(user=u, title='b2', content='foo')
-#         b.save(only=[Blog.user, Blog.title])
+async def test_dirty_from_query(flushdb):
+    u1 = await User.create(username='u1')
+    b1 = await Blog.create(title='b1', user=u1)
+    b2 = await Blog.create(title='b2', user=u1)
 
-#         b_db = Blog.get(Blog.pk == b.pk)
+    u_db = await User.get()
+    assert u_db.is_dirty() is False
 
-#         assert b_db.title, 'b2')
-#         assert b_db.content, '')
+    b_with_u = await (Blog
+                .select(Blog, User)
+                .join(User)
+                .where(Blog.title == 'b2')
+                .get())
+    assert b_with_u.is_dirty() is False
+    assert b_with_u.user.is_dirty() is False
 
-#     def test_save_only_dirty_fields(self):
-#         u = User.create(username='u1')
-#         b = Blog.create(title='b1', user=u, content='huey')
-#         b_db = Blog.get(Blog.pk == b.pk)
-#         b.title = 'baby huey'
-#         b.save(only=b.dirty_fields)
-#         b_db.content = 'mickey-nugget'
-#         b_db.save(only=b_db.dirty_fields)
-#         saved = Blog.get(Blog.pk == b.pk)
-#         assert saved.title, 'baby huey')
-#         assert saved.content, 'mickey-nugget')
+    u_with_blogs = (await User
+                    .select(User, Blog)
+                    .join(Blog)
+                    .order_by(Blog.title)
+                    .aggregate_rows())[0]
+    assert u_with_blogs.is_dirty() is False
+    async for blog in u_with_blogs.blog_set:
+        assert blog.is_dirty() is False
+
+    b_with_users = await (Blog
+                    .select(Blog, User)
+                    .join(User)
+                    .order_by(Blog.title)
+                    .aggregate_rows())
+    b1, b2 = b_with_users
+    assert b1.is_dirty() is False
+    assert b1.user.is_dirty() is False
+    assert b2.is_dirty() is False
+    assert b2.user.is_dirty() is False
+
+
+async def test_save_only(flushdb):
+    u = await User.create(username='u')
+    b = await Blog.create(user=u, title='b1', content='ct')
+    b.title = 'b1-edit'
+    b.content = 'ct-edit'
+
+    await b.save(only=[Blog.title])
+
+    b_db = await Blog.get(Blog.pk == b.pk)
+    assert b_db.title == 'b1-edit'
+    assert b_db.content == 'ct'
+
+    b = Blog(user=u, title='b2', content='foo')
+    await b.save(only=[Blog.user, Blog.title])
+
+    b_db = await Blog.get(Blog.pk == b.pk)
+
+    assert b_db.title =='b2'
+    assert b_db.content == ''
+
+
+async def test_save_only_dirty_fields(flushdb):
+    u = await User.create(username='u1')
+    b = await Blog.create(title='b1', user=u, content='huey')
+    b_db = await Blog.get(Blog.pk == b.pk)
+    b.title = 'baby huey'
+    await b.save(only=b.dirty_fields)
+    b_db.content = 'mickey-nugget'
+    await b_db.save(only=b_db.dirty_fields)
+    saved = await Blog.get(Blog.pk == b.pk)
+    assert saved.title == 'baby huey'
+    assert saved.content == 'mickey-nugget'
 
 #     def test_save_dirty_auto(self):
 #         User._meta.only_save_dirty = True
@@ -764,115 +779,116 @@ async def test_callable_related_name():
 #             User._meta.only_save_dirty = False
 #             Blog._meta.only_save_dirty = False
 
-#     def test_zero_id(self):
-#         if isinstance(test_db, MySQLDatabase):
-#             # Need to explicitly tell MySQL it's OK to use zero.
-#             test_db.execute_sql("SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO'")
-#         query = 'insert into users (id, username) values (%s, %s)' % (
-#             test_db.interpolation, test_db.interpolation)
-#         test_db.execute_sql(query, (0, 'foo'))
-#         Blog.insert(title='foo2', user=0).execute()
+# async def test_zero_id(flushdb):
+#     if isinstance(db, MySQLDatabase):
+#         # Need to explicitly tell MySQL it's OK to use zero.
+#         await db.execute_sql("SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO'")
+#     query = 'insert into users (id, username) values ({}, {})'.format(
+#         db.interpolation, db.interpolation)
 
-#         u = User.get(User.id == 0)
-#         b = Blog.get(Blog.user == u)
+#     db.execute_sql(query, (0, 'foo'))
+#     await Blog.insert(title='foo2', user=0).execute()
 
-#         self.assertTrue(u == u)
-#         self.assertTrue(u == b.user)
+#     u = await User.get(User.id == 0)
+#     b = await Blog.get(Blog.user == u)
 
-#     def test_saving_via_create_gh111(self):
-#         u = User.create(username='u')
-#         b = Blog.create(title='foo', user=u)
-#         last_sql, _ = self.queries()[-1]
-#         self.assertFalse('pub_date' in last_sql)
-#         assert b.pub_date, None)
+#     assert u == u
+#     assert u == b.user
 
-#         b2 = Blog(title='foo2', user=u)
-#         b2.save()
-#         last_sql, _ = self.queries()[-1]
-#         self.assertFalse('pub_date' in last_sql)
-#         assert b2.pub_date, None)
 
-#     def test_reading(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
+# async def test_saving_via_create_gh111(flushdb):
+#     u = await User.create(username='u')
+#     b = await Blog.create(title='foo', user=u)
+#     last_sql, _ = self.queries()[-1]
+#     self.assertFalse('pub_date' in last_sql)
+#     assert b.pub_date, None)
 
-#         assert u1, User.get(username='u1'))
-#         assert u2, User.get(username='u2'))
-#         self.assertFalse(u1 == u2)
+#     b2 = Blog(title='foo2', user=u)
+#     b2.save()
+#     last_sql, _ = self.queries()[-1]
+#     self.assertFalse('pub_date' in last_sql)
+#     assert b2.pub_date, None)
 
-#         assert u1, User.get(User.username == 'u1'))
-#         assert u2, User.get(User.username == 'u2'))
 
-#     def test_get_exception(self):
-#         exc = None
-#         try:
-#             User.get(User.id == 0)
-#         except Exception as raised_exc:
-#             exc = raised_exc
-#         else:
-#             assert False
+async def test_reading(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
 
-#         assert exc.__module__, 'playhouse.tests.models')
-#         assert
-#             str(type(exc)),
-#             "<class 'playhouse.tests.models.UserDoesNotExist'>")
-#         if sys.version_info[0] < 3:
-#             self.assertTrue(exc.message.startswith('Instance matching query'))
-#             self.assertTrue(exc.message.endswith('PARAMS: [0]'))
+    assert u1 == await User.get(username='u1')
+    assert u2 == await User.get(username='u2')
+    assert u1 != u2
 
-#     def test_get_or_create(self):
-#         u1, created = User.get_or_create(username='u1')
-#         self.assertTrue(created)
+    assert u1 == await User.get(User.username == 'u1')
+    assert u2 == await User.get(User.username == 'u2')
 
-#         u1_x, created = User.get_or_create(username='u1')
-#         self.assertFalse(created)
 
-#         assert u1.id, u1_x.id)
-#         assert User.select().count(), 1)
+async def test_get_exception(flushdb):
+    exc = None
+    try:
+        await User.get(User.id == 0)
+    except Exception as raised_exc:
+        exc = raised_exc
+    else:
+        assert False
 
-#     def test_get_or_create_extended(self):
-#         gc1, created = GCModel.get_or_create(
-#             name='huey',
-#             key='k1',
-#             value='v1',
-#             defaults={'number': 3})
-#         self.assertTrue(created)
-#         assert gc1.name, 'huey')
-#         assert gc1.key, 'k1')
-#         assert gc1.value, 'v1')
-#         assert gc1.number, 3)
+    assert exc.__module__ == 'models'
+    assert str(type(exc)) == "<class 'models.UserDoesNotExist'>"
 
-#         gc1_db, created = GCModel.get_or_create(
-#             name='huey',
-#             defaults={'key': 'k2', 'value': 'v2'})
-#         self.assertFalse(created)
-#         assert gc1_db.id, gc1.id)
-#         assert gc1_db.key, 'k1')
 
-#         def integrity_error():
-#             gc2, created = GCModel.get_or_create(
-#                 name='huey',
-#                 key='kx',
-#                 value='vx')
+async def test_get_or_create(flushdb):
+    u1, created = await User.get_or_create(username='u1')
+    assert created is True
 
-#         self.assertRaises(IntegrityError, integrity_error)
+    u1_x, created = await User.get_or_create(username='u1')
+    assert created is False
 
-#         gc2, created = GCModel.get_or_create(
-#             name__ilike='%nugget%',
-#             defaults={
-#                 'name': 'foo-nugget',
-#                 'key': 'k2',
-#                 'value': 'v2'})
-#         self.assertTrue(created)
-#         assert gc2.name, 'foo-nugget')
+    assert u1.id == u1_x.id
+    assert await User.select().count() == 1
 
-#         gc2_db, created = GCModel.get_or_create(
-#             name__ilike='%nugg%',
-#             defaults={'name': 'xx'})
-#         self.assertFalse(created)
-#         assert gc2_db.id, gc2.id)
 
-#         assert GCModel.select().count(), 2)
+async def test_get_or_create_extended(flushdb):
+    await GCModel.create_table()
+    gc1, created = await GCModel.get_or_create(
+        name='huey',
+        key='k1',
+        value='v1',
+        defaults={'number': 3})
+
+    assert created is True
+    assert gc1.name == 'huey'
+    assert gc1.key == 'k1'
+    assert gc1.value == 'v1'
+    assert gc1.number == 3
+
+    gc1_db, created = await GCModel.get_or_create(
+        name='huey',
+        defaults={'key': 'k2', 'value': 'v2'})
+    assert created is False
+    assert gc1_db.id == gc1.id
+    assert gc1_db.key == 'k1'
+
+    with pytest.raises(IntegrityError):
+        gc2, created = await GCModel.get_or_create(
+            name='huey',
+            key='kx',
+            value='vx')
+
+    gc2, created = await GCModel.get_or_create(
+        name__ilike='%nugget%',
+        defaults={'name': 'foo-nugget',
+                  'key': 'k2',
+                  'value': 'v2'})
+    assert created is True
+    assert gc2.name == 'foo-nugget'
+
+    gc2_db, created = await GCModel.get_or_create(
+        name__ilike='%nugg%',
+        defaults={'name': 'xx'})
+    assert created is False
+    assert gc2_db.id == gc2.id
+
+    assert await GCModel.select().count() == 2
+    await GCModel.drop_table()
 
 #     def test_peek(self):
 #         users = User.create_users(3)
@@ -932,96 +948,99 @@ async def test_callable_related_name():
 #         sq = User.select().where(User.username == 'not-here')
 #         assert sq.first(), None)
 
-#     def test_deleting(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
 
-#         assert User.select().count(), 2)
-#         u1.delete_instance()
-#         assert User.select().count(), 1)
+async def test_deleting(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
 
-#         assert u2, User.get(User.username=='u2'))
+    assert await User.select().count() == 2
+    await u1.delete_instance()
+    assert await User.select().count() == 1
 
-#     def test_counting(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
+    assert u2 == await User.get(User.username=='u2')
 
-#         for u in [u1, u2]:
-#             for i in range(5):
-#                 Blog.create(title='b-%s-%s' % (u.username, i), user=u)
 
-#         uc = User.select().where(User.username == 'u1').join(Blog).count()
-#         assert uc, 5)
+# async def test_counting(flushdb):
+#     u1 = await User.create(username='u1')
+#     u2 = await User.create(username='u2')
 
-#         uc = User.select().where(User.username == 'u1').join(Blog).distinct().count()
-#         assert uc, 1)
+#     for u in [u1, u2]:
+#         for i in range(5):
+#             await Blog.create(title=f'b-{u.username}-{i}', user=u)
 
-#         assert Blog.select().limit(4).offset(3).count(), 4)
-#         assert Blog.select().limit(4).offset(3).count(True), 10)
+#     uc = User.select().where(User.username == 'u1').join(Blog).count()
+#     assert await uc == 5
 
-#         # Calling `distinct()` will result in a call to wrapped_count().
-#         uc = User.select().join(Blog).distinct().count()
-#         assert uc, 2)
+#     uc = User.select().where(User.username == 'u1').join(Blog).distinct().count()
+#     assert await uc == 1
 
-#         # Test with clear limit = True.
-#         assert User.select().limit(1).count(clear_limit=True), 2)
-#         assert
-#             User.select().limit(1).wrapped_count(clear_limit=True), 2)
+#     assert await Blog.select().limit(4).offset(3).count() == 4
+#     assert await Blog.select().limit(4).offset(3).count(True) == 10
 
-#         # Test with clear limit = False.
-#         assert User.select().limit(1).count(clear_limit=False), 1)
-#         assert
-#             User.select().limit(1).wrapped_count(clear_limit=False), 1)
+#     # Calling `distinct()` will result in a call to wrapped_count().
+#     uc = User.select().join(Blog).distinct().count()
+#     assert await uc == 2
 
-#     def test_ordering(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
-#         u3 = User.create(username='u2')
-#         users = User.select().order_by(User.username.desc(), User.id.desc())
-#         assert [u._get_pk_value() for u in users], [u3.id, u2.id, u1.id])
+#     # Test with clear limit = True.
+#     assert await User.select().limit(1).count(clear_limit=True) == 2
+#     assert await User.select().limit(1).wrapped_count(clear_limit=True) == 2
 
-#     def test_count_transaction(self):
-#         for i in range(10):
-#             User.create(username='u%d' % i)
+#     # Test with clear limit = False.
+#     assert await User.select().limit(1).count(clear_limit=False) == 1
+#     assert await User.select().limit(1).wrapped_count(clear_limit=False) == 1
 
-#         with test_db.transaction():
-#             for user in User.select():
-#                 for i in range(20):
-#                     Blog.create(user=user, title='b-%d-%d' % (user.id, i))
 
-#         count = Blog.select().count()
-#         assert count, 200)
+async def test_ordering(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
+    u3 = await User.create(username='u2')
+    users = User.select().order_by(User.username.desc(), User.id.desc())
+    assert [u._get_pk_value() async for u in users] == [u3.id, u2.id, u1.id]
 
-#     def test_exists(self):
-#         u1 = User.create(username='u1')
-#         self.assertTrue(User.select().where(User.username == 'u1').exists())
-#         self.assertFalse(User.select().where(User.username == 'u2').exists())
 
-#     def test_unicode(self):
-#         # create a unicode literal
-#         ustr = ulit('Lýðveldið Ísland')
-#         u = User.create(username=ustr)
+# async def test_count_transaction(flushdb):
+#     for i in range(10):
+#         await User.create(username='u%d' % i)
 
-#         # query using the unicode literal
-#         u_db = User.get(User.username == ustr)
+#     async with db.transaction():
+#         async for user in User.select():
+#             for i in range(20):
+#                 await Blog.create(user=user, title='b-%d-%d' % (user.id, i))
 
-#         # the db returns a unicode literal
-#         assert u_db.username, ustr)
+#     count = Blog.select().count()
+#     assert count == 200
 
-#         # delete the user
-#         assert u.delete_instance(), 1)
+async def test_exists(flushdb):
+    u1 = await User.create(username='u1')
+    assert await User.select().where(User.username == 'u1').exists() is True
+    assert await User.select().where(User.username == 'u2').exists() is False
 
-#         # convert the unicode to a utf8 string
-#         utf8_str = ustr.encode('utf-8')
 
-#         # create using the utf8 string
-#         u2 = User.create(username=utf8_str)
+async def test_unicode(flushdb):
+    # create a unicode literal
+    ustr = 'Lýðveldið Ísland'
+    u = await User.create(username=ustr)
 
-#         # query using unicode literal
-#         u2_db = User.get(User.username == ustr)
+    # query using the unicode literal
+    u_db = await User.get(User.username == ustr)
 
-#         # we get unicode back
-#         assert u2_db.username, ustr)
+    # the db returns a unicode literal
+    assert u_db.username == ustr
+
+    # delete the user
+    assert await u.delete_instance() == 1
+
+    # convert the unicode to a utf8 string
+    utf8_str = ustr.encode('utf-8')
+
+    # create using the utf8 string
+    u2 = await User.create(username=utf8_str)
+
+    # query using unicode literal
+    u2_db = await User.get(User.username == ustr)
+
+    # we get unicode back
+    assert u2_db.username == ustr
 
 #     def test_unicode_issue202(self):
 #         ustr = ulit('M\u00f6rk')

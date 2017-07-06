@@ -1956,47 +1956,46 @@ async def test_unicode(flushdb):
 
 #         assert Person.select().count(), 2)
 
-#     def test_insert_many(self):
-#         class User(self.BaseModel):
-#             username = CharField()
-#             class Meta:
-#                 db_table = 'users'
+# async def test_insert_many(flushdb):
+#     class User(Model):
+#         username = CharField()
+#         class Meta:
+#             database = db
+#             db_table = 'users'
 
-#         self.models.append(User)
-#         User.create_table()
+#     await db.create_tables([User], safe=True)
 
-#         usernames = ['charlie', 'huey', 'zaizee']
-#         data = [{'username': username} for username in usernames]
+#     usernames = ['charlie', 'huey', 'zaizee']
+#     data = [{'username': username} for username in usernames]
 
-#         query = User.insert_many(data)
-#         sql, params = query.sql()
-#         assert sql, (
-#             'INSERT INTO "users" ("username") '
-#             'VALUES (%s), (%s), (%s)'))
-#         assert params, usernames)
+#     query = User.insert_many(data)
+#     sql, params = query.sql()
+#     assert sql == ('INSERT INTO "users" ("username") '
+#                    'VALUES (%s), (%s), (%s)')
+#     assert params == usernames
 
-#         res = query.execute()
-#         self.assertTrue(res is True)
-#         assert User.select().count(), 3)
-#         z = User.select().order_by(-User.username).get()
-#         assert z.username, 'zaizee')
+#     res = await query.execute()
+#     assert res is True
+#     assert await User.select().count() == 3
+#     z = await User.select().order_by(-User.username).get()
+#     assert z.username == 'zaizee'
 
-#         usernames = ['foo', 'bar', 'baz']
-#         data = [{'username': username} for username in usernames]
-#         query = User.insert_many(data).return_id_list()
-#         sql, params = query.sql()
-#         assert sql, (
-#             'INSERT INTO "users" ("username") '
-#             'VALUES (%s), (%s), (%s) RETURNING "id"'))
-#         assert params, usernames)
+#     usernames = ['foo', 'bar', 'baz']
+#     data = [{'username': username} for username in usernames]
+#     query = User.insert_many(data).return_id_list()
+#     sql, params = query.sql()
+#     assert sql == ('INSERT INTO "users" ("username") '
+#                    'VALUES (%s), (%s), (%s) RETURNING "id"')
+#     assert params == usernames
 
-#         res = list(query.execute())
-#         assert len(res), 3)
-#         foo = User.get(User.username == 'foo')
-#         bar = User.get(User.username == 'bar')
-#         baz = User.get(User.username == 'baz')
-#         assert res, [foo.id, bar.id, baz.id])
+#     res = list(await query.execute())
+#     assert len(res) == 3
+#     foo = await User.get(User.username == 'foo')
+#     bar = await User.get(User.username == 'bar')
+#     baz = await User.get(User.username == 'baz')
+#     assert res, [foo.id, bar.id, baz.id]
 
+#     await User.drop_table()
 
 # @skip_unless(lambda: isinstance(test_db, PostgresqlDatabase))
 # class TestReturningClause(ModelTestCase):
@@ -2032,35 +2031,37 @@ async def test_unicode(flushdb):
 #             user_data,
 #             [{'username': 'huey'}, {'username': 'huey'}])
 
-#     def test_delete_returning(self):
-#         User.create_users(10)
 
-#         dq = User.delete().where(User.username << ['u9', 'u10'])
-#         res = dq.execute()
-#         assert res, 2)  # Number of rows modified.
+# async def test_delete_returning(flushdb):
+#     await User.create_users(10)
 
-#         dq = (User
-#               .delete()
-#               .where(User.username << ['u7', 'u8'])
-#               .returning(User.username))
-#         users = [user for user in dq.execute()]
-#         assert len(users), 2)
+#     dq = User.delete().where(User.username << ['u9', 'u10'])
+#     res = await dq.execute()
+#     assert res == 2  # Number of rows modified.
 
-#         usernames = sorted([user.username for user in users])
-#         assert usernames, ['u7', 'u8'])
+#     dq = (User
+#           .delete()
+#           .where(User.username << ['u7', 'u8'])
+#           .returning(User.username))
+#     users = [user async for user in dq.execute()]
+#     assert len(users) == 2
 
-#         ids = [user.id for user in users]
-#         assert ids, [None, None])  # Was not selected.
+#     usernames = sorted([user.username for user in users])
+#     assert usernames == ['u7', 'u8']
 
-#         dq = (User
-#               .delete()
-#               .where(User.username == 'u1')
-#               .returning(User))
-#         users = [user for user in dq.execute()]
-#         assert len(users), 1)
-#         user, = users
-#         assert user.username, 'u1')
-#         self.assertIsNotNone(user.id)
+#     ids = [user.id for user in users]
+#     assert ids == [None, None]  # Was not selected.
+
+#     dq = (User
+#           .delete()
+#           .where(User.username == 'u1')
+#           .returning(User))
+#     users = [user async for user in dq.execute()]
+#     assert len(users) == 1
+#     user, = users
+#     assert user.username == 'u1'
+#     assert user.id is not None
+
 
 #     def test_insert_returning(self):
 #         iq = User.insert(username='zaizee').returning(User)
@@ -2094,61 +2095,61 @@ async def test_unicode(flushdb):
 #         assert id_mickey - id_charlie, 4)
 
 
-# class TestModelHash(PeeweeTestCase):
-#     def test_hash(self):
-#         class MyUser(User):
-#             pass
+async def test_hash():
+    class MyUser(User):
+        pass
 
-#         d = {}
-#         u1 = User(id=1)
-#         u2 = User(id=2)
-#         u3 = User(id=3)
-#         m1 = MyUser(id=1)
-#         m2 = MyUser(id=2)
-#         m3 = MyUser(id=3)
+    d = {}
+    u1 = User(id=1)
+    u2 = User(id=2)
+    u3 = User(id=3)
+    m1 = MyUser(id=1)
+    m2 = MyUser(id=2)
+    m3 = MyUser(id=3)
 
-#         d[u1] = 'u1'
-#         d[u2] = 'u2'
-#         d[m1] = 'm1'
-#         d[m2] = 'm2'
-#         self.assertTrue(u1 in d)
-#         self.assertTrue(u2 in d)
-#         self.assertFalse(u3 in d)
-#         self.assertTrue(m1 in d)
-#         self.assertTrue(m2 in d)
-#         self.assertFalse(m3 in d)
+    d[u1] = 'u1'
+    d[u2] = 'u2'
+    d[m1] = 'm1'
+    d[m2] = 'm2'
+    assert u1 in d
+    assert u2 in d
+    assert u3 not in d
+    assert m1 in d
+    assert m2 in d
+    assert m3 not in d
 
-#         assert d[u1], 'u1')
-#         assert d[u2], 'u2')
-#         assert d[m1], 'm1')
-#         assert d[m2], 'm2')
+    assert d[u1] == 'u1'
+    assert d[u2] == 'u2'
+    assert d[m1] == 'm1'
+    assert d[m2] == 'm2'
 
-#         un = User()
-#         mn = MyUser()
-#         d[un] = 'un'
-#         d[mn] = 'mn'
-#         self.assertTrue(un in d)  # Hash implementation.
-#         self.assertTrue(mn in d)
-#         assert d[un], 'un')
-#         assert d[mn], 'mn')
+    un = User()
+    mn = MyUser()
+    d[un] = 'un'
+    d[mn] = 'mn'
+    assert un in d  # Hash implementation.
+    assert mn in d
+    assert d[un] == 'un'
+    assert d[mn] == 'mn'
 
 
 # class TestDeleteNullableForeignKeys(ModelTestCase):
 #     requires = [User, Note, Flag, NoteFlagNullable]
 
-#     def test_delete(self):
-#         u = User.create(username='u')
-#         n = Note.create(user=u, text='n')
-#         f = Flag.create(label='f')
-#         nf1 = NoteFlagNullable.create(note=n, flag=f)
-#         nf2 = NoteFlagNullable.create(note=n, flag=None)
-#         nf3 = NoteFlagNullable.create(note=None, flag=f)
-#         nf4 = NoteFlagNullable.create(note=None, flag=None)
 
-#         assert nf1.delete_instance(), 1)
-#         assert nf2.delete_instance(), 1)
-#         assert nf3.delete_instance(), 1)
-#         assert nf4.delete_instance(), 1)
+async def test_delete_nullable(flushdb):
+    u = await User.create(username='u')
+    n = await Note.create(user=u, text='n')
+    f = await Flag.create(label='f')
+    nf1 = await NoteFlagNullable.create(note=n, flag=f)
+    nf2 = await NoteFlagNullable.create(note=n, flag=None)
+    nf3 = await NoteFlagNullable.create(note=None, flag=f)
+    nf4 = await NoteFlagNullable.create(note=None, flag=None)
+
+    assert await nf1.delete_instance() == 1
+    assert await nf2.delete_instance() == 1
+    assert await nf3.delete_instance() == 1
+    assert await nf4.delete_instance() == 1
 
 
 # class TestJoinNullableForeignKey(ModelTestCase):
@@ -2262,32 +2263,32 @@ async def test_unicode(flushdb):
 #         assert dm3_db.field, 4)
 
 
-# class TestFunctionCoerceRegression(PeeweeTestCase):
-#     def test_function_coerce(self):
-#         class M1(Model):
-#             data = IntegerField()
-#             class Meta:
-#                 database = in_memory_db
 
-#         class M2(Model):
-#             id = IntegerField()
-#             class Meta:
-#                 database = in_memory_db
+# def test_function_coerce(self):
+#     class M1(Model):
+#         data = IntegerField()
+#         class Meta:
+#             database = in_memory_db
 
-#         in_memory_db.create_tables([M1, M2])
+#     class M2(Model):
+#         id = IntegerField()
+#         class Meta:
+#             database = in_memory_db
 
-#         for i in range(3):
-#             M1.create(data=i)
-#             M2.create(id=i + 1)
+#     in_memory_db.create_tables([M1, M2])
 
-#         qm1 = M1.select(fn.GROUP_CONCAT(M1.data).coerce(False).alias('data'))
-#         qm2 = M2.select(fn.GROUP_CONCAT(M2.id).coerce(False).alias('ids'))
+#     for i in range(3):
+#         M1.create(data=i)
+#         M2.create(id=i + 1)
 
-#         m1 = qm1.get()
-#         assert m1.data, '0,1,2')
+#     qm1 = M1.select(fn.GROUP_CONCAT(M1.data).coerce(False).alias('data'))
+#     qm2 = M2.select(fn.GROUP_CONCAT(M2.id).coerce(False).alias('ids'))
 
-#         m2 = qm2.get()
-#         assert m2.ids, '1,2,3')
+#     m1 = qm1.get()
+#     assert m1.data, '0,1,2')
+
+#     m2 = qm2.get()
+#     assert m2.ids, '1,2,3')
 
 
 # @skip_unless(
@@ -2307,32 +2308,29 @@ async def test_unicode(flushdb):
 #         assert obj, ub)
 
 
-# class TestModelObjectIDSpecification(PeeweeTestCase):
-#     def test_specify_object_id_name(self):
-#         class User(Model): pass
-#         class T0(Model):
-#             user = ForeignKeyField(User)
-#         class T1(Model):
-#             user = ForeignKeyField(User, db_column='uid')
-#         class T2(Model):
-#             user = ForeignKeyField(User, object_id_name='uid')
-#         class T3(Model):
-#             user = ForeignKeyField(User, db_column='x', object_id_name='uid')
-#         class T4(Model):
-#             foo = ForeignKeyField(User, db_column='user')
-#         class T5(Model):
-#             foo = ForeignKeyField(User, object_id_name='uid')
+# async def test_specify_object_id_name():
+#     class User(Model): pass
+#     class T0(Model):
+#         user = ForeignKeyField(User)
+#     class T1(Model):
+#         user = ForeignKeyField(User, db_column='uid')
+#     class T2(Model):
+#         user = ForeignKeyField(User, object_id_name='uid')
+#     class T3(Model):
+#         user = ForeignKeyField(User, db_column='x', object_id_name='uid')
+#     class T4(Model):
+#         foo = ForeignKeyField(User, db_column='user')
+#     class T5(Model):
+#         foo = ForeignKeyField(User, object_id_name='uid')
 
-#         user = User(id=1337)
-#         assert T0(user=user).user_id, 1337)
-#         assert T1(user=user).uid, 1337)
-#         assert T2(user=user).uid, 1337)
-#         assert T3(user=user).uid, 1337)
-#         assert T4(foo=user).user, 1337)
-#         assert T5(foo=user).uid, 1337)
+#     user = User(id=1337)
+#     assert T0(user=user).user_id == 1337
+#     assert T1(user=user).uid == 1337
+#     assert T2(user=user).uid == 1337
+#     assert T3(user=user).uid == 1337
+#     assert T4(foo=user).user == 1337
+#     assert T5(foo=user).uid == 1337
 
-#         def conflicts_with_name():
-#             class TE(Model):
-#                 user = ForeignKeyField(User, object_id_name='user')
-
-#         self.assertRaises(ValueError, conflicts_with_name)
+#     with pytest.raises(ValueError):
+#         class TE(Model):
+#             user = ForeignKeyField(User, object_id_name='user')

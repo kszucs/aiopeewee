@@ -1,4 +1,6 @@
+from aitertools import aiter
 from collections import OrderedDict
+
 from peewee import QueryResultWrapper, ExtQueryResultWrapper
 from peewee import TuplesQueryResultWrapper, DictQueryResultWrapper
 from peewee import ModelQueryResultWrapper, AggregateQueryResultWrapper
@@ -24,9 +26,6 @@ class AioResultIterator(object):
         return obj
 
 
-from aitertools import aiter
-
-
 class AioQueryResultWrapper(QueryResultWrapper):
 
     async def __aiter__(self):
@@ -38,6 +37,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
             return AioResultIterator(self)
 
     def __await__(self):
+        print('awaited')
         return self.all().__await__()
 
     async def all(self):
@@ -52,15 +52,12 @@ class AioQueryResultWrapper(QueryResultWrapper):
         self._idx = self._ct = len(rows)
         return rows
 
-    @property
-    def count(self):
-        raise NotImplementedError()
-        # self.fill_cache()
-        # return self._ct
+    async def count(self):
+        await self.fill_cache()
+        return self._ct
 
     def __len__(self):
         raise NotImplementedError()
-        # return self.count
 
     async def iterate(self):
         row = await self.cursor.fetchone()
@@ -76,10 +73,12 @@ class AioQueryResultWrapper(QueryResultWrapper):
             self._initialized = True
         return self.process_row(row)
 
-    def iterator(self):
-        raise NotImplementedError()
-        # while True:
-        #     yield self.iterate()
+    async def iterator(self):
+        while True:
+            try:
+                yield await self.iterate()
+            except StopAsyncIteration:
+                break
 
     async def __anext__(self):
         print('__anext__')

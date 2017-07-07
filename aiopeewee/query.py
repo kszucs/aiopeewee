@@ -90,12 +90,14 @@ class AioSelectQuery(AioQuery, SelectQuery):
         rq = self.model_class.raw(wrapped, *params)
         return await rq.scalar() or 0
 
-    async def all(self):
-        qr = await self.execute()
-        return await qr.all()
+    # async def all(self):
+    #     qr = await
+    #     return await qr.all()
 
-    def __await__(self):
-        return self.all().__await__()
+    async def __await__(self):
+        qr = await self.execute()
+        return qr.__await__()
+        #return self.all().__await__()
 
     async def exists(self):
         clone = self.paginate(1, 1)
@@ -142,7 +144,9 @@ class AioSelectQuery(AioQuery, SelectQuery):
             return self._qr
 
     async def iterator(self):
-        raise NotImplementedError()
+        qr = await self.execute()
+        async for row in qr.iterator():
+            yield row
 
     def __getitem__(self, value):
         raise NotImplementedError()

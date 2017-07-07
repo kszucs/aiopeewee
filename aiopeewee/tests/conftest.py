@@ -17,9 +17,9 @@ def event_loop():
 
 @pytest.yield_fixture(scope='session')
 async def tables():
-    tables = [User, Blog, EmptyModel, NoPKModel,
+    tables = [User, Blog, BlogTwo, Comment, EmptyModel, NoPKModel,
               Category, UserCategory, UniqueMultiField,
-              NonIntModel]
+              NonIntModel, Note, Flag, NoteFlagNullable, OrderedModel]
     try:
         await db.connect()
         await db.create_tables(tables, safe=True)

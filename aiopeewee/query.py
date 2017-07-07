@@ -189,7 +189,7 @@ class AioInsertQuery(_AioWriteQuery, InsertQuery):
         last_id = None
         return_id_list = self._return_id_list
         for row in self._rows:
-            last_id = await (InsertQuery(self.model_class, row)
+            last_id = await (AioInsertQuery(self.model_class, row)
                              .upsert(self._upsert)
                              .execute())
             if return_id_list:

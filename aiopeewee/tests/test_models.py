@@ -1,59 +1,18 @@
 import sys
 import pytest
 
-from utils import assert_query_count
+from utils import assert_query_count, assert_queries_equal
 from functools import partial
 from aitertools import aiter
 from models import *
 from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKeyField
+from peewee import ModelOptions
 from aiopeewee import AioModel as Model
 from aiopeewee import AioMySQLDatabase
-
-# from peewee import *
-# from peewee import ModelOptions
-# from peewee import sqlite3
-# from playhouse.tests.base import compiler
-# from playhouse.tests.base import database_initializer
-# from playhouse.tests.base import ModelTestCase
-# from playhouse.tests.base import normal_compiler
-# from playhouse.tests.base import PeeweeTestCase
-# from playhouse.tests.base import skip_if
-# from playhouse.tests.base import skip_unless
-# from playhouse.tests.base import test_db
-# from playhouse.tests.base import ulit
-# from playhouse.tests.models import *
 
 
 # in_memory_db = database_initializer.get_in_memory_database()
 # supports_tuples = sqlite3.sqlite_version_info >= (3, 15, 0)
-
-
-class GCModel(Model):
-    name = CharField(unique=True)
-    key = CharField()
-    value = CharField()
-    number = IntegerField(default=0)
-
-    class Meta:
-        database = db
-        indexes = (
-            (('key', 'value'), True),
-        )
-
-def incrementer():
-    d = {'value': 0}
-    def increment():
-        d['value'] += 1
-        return d['value']
-    return increment
-
-
-class DefaultsModel(Model):
-    field = IntegerField(default=incrementer())
-    control = IntegerField(default=1)
-
-    class Meta:
-        database = db
 
 
 pytestmark = pytest.mark.asyncio
@@ -272,37 +231,41 @@ async def test_raw_fn(flushdb):
 #     assert len(blogs) == 6
 
 
-# async def test_insert_many(flushdb):
-#     qc = len(self.queries())
-#     iq = User.insert_many([
-#         {'username': 'u1'},
-#         {'username': 'u2'},
-#         {'username': 'u3'},
-#         {'username': 'u4'}])
-#     self.assertTrue(iq.execute())
+async def test_insert_many(flushdb):
+    if db.insert_many:
+        with assert_query_count(1):
+            iq = User.insert_many([
+                {'username': 'u1'},
+                {'username': 'u2'},
+                {'username': 'u3'},
+                {'username': 'u4'}])
+            assert await iq.execute()
+    else:
+        with assert_query_count(4):
+            iq = User.insert_many([
+                {'username': 'u1'},
+                {'username': 'u2'},
+                {'username': 'u3'},
+                {'username': 'u4'}])
+            assert await iq.execute()
 
-#     qc2 = len(self.queries())
-#     if test_db.insert_many:
-#         assert qc2 - qc, 1)
-#     else:
-#         assert qc2 - qc, 4)
-#     assert User.select().count(), 4)
+    assert await User.select().count() == 4
 
-#     sq = User.select(User.username).order_by(User.username)
-#     assert [u.username for u in sq], ['u1', 'u2', 'u3', 'u4'])
+    sq = User.select(User.username).order_by(User.username)
+    assert [u.username async for u in sq] == ['u1', 'u2', 'u3', 'u4']
 
-#     iq = User.insert_many([{'username': 'u5'}])
-#     self.assertTrue(iq.execute())
-#     assert User.select().count(), 5)
+    iq = User.insert_many([{'username': 'u5'}])
+    assert await iq.execute()
+    assert await User.select().count() == 5
 
-#     iq = User.insert_many([
-#         {User.username: 'u6'},
-#         {User.username: 'u7'},
-#         {'username': 'u8'}]).execute()
+    iq = await User.insert_many([
+        {User.username: 'u6'},
+        {User.username: 'u7'},
+        {'username': 'u8'}]).execute()
 
-#     sq = User.select(User.username).order_by(User.username)
-#     assert [u.username for u in sq],
-#                      ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8'])
+    sq = User.select(User.username).order_by(User.username)
+    exp = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8']
+    assert [u.username async for u in sq] == exp
 
 
 async def test_noop_query(flushdb):
@@ -328,32 +291,32 @@ async def test_insert_many_fallback(flushdb):
     assert await User.select().count() == 4
 
 
-# async def test_raw(flushdb):
-#     await User.create_users(3)
-#     interpolation = db.interpolation
+async def test_raw(flushdb):
+    await User.create_users(3)
+    interpolation = db.interpolation
 
-#     with assert_query_count(1):
-#         query = 'select * from users where username IN (%s, %s)' % (
-#             interpolation, interpolation)
-#         rq = User.raw(query, 'u1', 'u3')
-#         assert [u.username async for u in rq] == ['u1', 'u3']
+    with assert_query_count(1):
+        query = 'select * from users where username IN (%s, %s)' % (
+            interpolation, interpolation)
+        rq = User.raw(query, 'u1', 'u3')
 
-#         # iterate again
-#         # TODO this not works
-#         # assert [u.username async for u in rq] == ['u1', 'u3']
+        assert [u.username async for u in rq] == ['u1', 'u3']
 
-#     query = ('select id, username, %s as secret '
-#              'from users where username = %s')
-#     rq = await User.raw(query % (interpolation, interpolation),
-#                         'sh', 'u2')
-#     assert [u.secret for u in rq] == ['sh']
-#     assert [u.username for u in rq] == ['u2']
+        # iterate again
+        assert [u.username async for u in rq] == ['u1', 'u3']
 
-#     rq = User.raw('select count(id) from users')
-#     assert await rq.scalar() == 3
+    query = ('select id, username, %s as secret '
+             'from users where username = %s')
+    rq = User.raw(query % (interpolation, interpolation),
+                  'sh', 'u2')
+    assert [u.secret async for u in rq] == ['sh']
+    assert [u.username async for u in rq] == ['u2']
 
-#     rq = User.raw('select username from users').tuples()
-#     assert [r for r in rq] == [('u1',), ('u2',), ('u3',)]
+    rq = User.raw('select count(id) from users')
+    assert await rq.scalar() == 3
+
+    rq = User.raw('select username from users').tuples()
+    assert [r async for r in rq] == [('u1',), ('u2',), ('u3',)]
 
 
 # async def test_insert_empty(flushdb):
@@ -439,93 +402,95 @@ async def test_callable_related_name():
     assert not hasattr(Foo, 'baz_set')
 
 
-# async def test_fk_exceptions(flushdb):
-#     c1 = await Category.create(name='c1')
-#     c2 = await Category.create(parent=c1, name='c2')
-#     assert c1.parent is None
-#     assert c2.parent is c1
+async def test_fk_exceptions(flushdb):
+    c1 = await Category.create(name='c1')
+    c2 = await Category.create(parent=c1, name='c2')
+    assert c1.parent is None
+    assert c2.parent is c1
 
-#     c2_db = await Category.get(Category.id == c2.id)
-#     assert await c2_db.parent == c1
+    c2_db = await Category.get(Category.id == c2.id)
+    assert await c2_db.parent == c1
 
-#     u = await User.create(username='u1')
-#     b = await Blog.create(user=u, title='b')
-#     b2 = Blog(title='b2')
+    u = await User.create(username='u1')
+    b = await Blog.create(user=u, title='b')
+    b2 = Blog(title='b2')
 
-#     assert b.user is u
-#     with pytest.raises(User.DoesNotExist):
-#         await b2.user
-
-
-#     def test_fk_cache_invalidated(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
-#         b = Blog.create(user=u1, title='b')
-
-#         blog = Blog.get(Blog.pk == b)
-#         with assert_query_count(1):
-#             assert blog.user.id, u1.id)
-
-#         blog.user = u2.id
-#         with assert_query_count(1):
-#             assert blog.user.id, u2.id)
-
-#         # No additional query.
-#         blog.user = u2.id
-#         with assert_query_count(0):
-#             assert blog.user.id, u2.id)
+    assert b.user is u
+    with pytest.raises(User.DoesNotExist):
+        await b2.user
 
 
-# async def test_fk_ints(flushdb):
-#     c1 = await Category.create(name='c1')
-#     c2 = await Category.create(name='c2', parent=c1.id)
-#     c2_db = await Category.get(Category.id == c2.id)
-#     assert await c2_db.parent == c1
-
-
-# async def test_fk_object_id(flushdb):
-#     c1 = await Category.create(name='c1')
-#     c2 = await Category.create(name='c2')
-#     c2.parent_id = c1.id
-#     await c2.save()
-#     assert c2.parent == c1
-#     c2_db = await Category.get(Category.name == 'c2')
-#     assert await c2_db.parent == c1
-
-
-#     def test_fk_caching(self):
-#         c1 = Category.create(name='c1')
-#         c2 = Category.create(name='c2', parent=c1)
-#         c2_db = Category.get(Category.id == c2.id)
-
-#         with assert_query_count(1):
-#             parent = c2_db.parent
-#             assert parent, c1)
-
-#             parent = c2_db.parent
-
-# async def test_related_id(flushdb):
+# async def test_fk_cache_invalidated(flushdb):
 #     u1 = await User.create(username='u1')
 #     u2 = await User.create(username='u2')
-#     for u in [u1, u2]:
-#         for j in range(2):
-#             await Blog.create(user=u, title='%s-%s' % (u.username, j))
+#     b = await Blog.create(user=u1, title='b')
 
+#     blog = await Blog.get(Blog.pk == b)
 #     with assert_query_count(1):
-#         query = Blog.select().order_by(Blog.pk)
-#         user_ids = [blog.user_id async for blog in query]
+#         assert (await blog.user).id == u1.id
 
-#     assert user_ids == [u1.id, u1.id, u2.id, u2.id]
-
-#     p1 = await Category.create(name='p1')
-#     p2 = await Category.create(name='p2')
-#     c1 = await Category.create(name='c1', parent=p1)
-#     c2 = await Category.create(name='c2', parent=p2)
-
+#     blog.user = u2.id
 #     with assert_query_count(1):
-#         query = Category.select().order_by(Category.id)
-#         expected = [None, None, p1.id, p2.id]
-#         assert [cat.parent_id async for cat in query] == expected
+#         assert (await blog.user).id == u2.id
+
+#     # No additional query.
+#     blog.user = u2.id
+#     with assert_query_count(0):
+#         assert (await blog.user).id == u2.id
+
+
+async def test_fk_ints(flushdb):
+    c1 = await Category.create(name='c1')
+    c2 = await Category.create(name='c2', parent=c1.id)
+    c2_db = await Category.get(Category.id == c2.id)
+    assert await c2_db.parent == c1
+
+
+async def test_fk_object_id(flushdb):
+    c1 = await Category.create(name='c1')
+    c2 = await Category.create(name='c2')
+    c2.parent_id = c1.id
+    await c2.save()
+    assert c2.parent == c1
+    c2_db = await Category.get(Category.name == 'c2')
+    assert await c2_db.parent == c1
+
+
+async def test_fk_caching(flushdb):
+    c1 = await Category.create(name='c1')
+    c2 = await Category.create(name='c2', parent=c1)
+    c2_db = await Category.get(Category.id == c2.id)
+
+    with assert_query_count(1):
+        parent = await c2_db.parent
+        assert parent == c1
+
+        # TODO it should be awaitable again
+        parent = c2_db.parent
+
+
+async def test_related_id(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
+    for u in [u1, u2]:
+        for j in range(2):
+            await Blog.create(user=u, title='%s-%s' % (u.username, j))
+
+    with assert_query_count(1):
+        query = Blog.select().order_by(Blog.pk)
+        user_ids = [blog.user_id async for blog in query]
+
+    assert user_ids == [u1.id, u1.id, u2.id, u2.id]
+
+    p1 = await Category.create(name='p1')
+    p2 = await Category.create(name='p2')
+    c1 = await Category.create(name='c1', parent=p1)
+    c2 = await Category.create(name='c2', parent=p2)
+
+    with assert_query_count(1):
+        query = Category.select().order_by(Category.id)
+        expected = [None, None, p1.id, p2.id]
+        assert [cat.parent_id async for cat in query] == expected
 
 
 async def test_fk_object_id(flushdb):
@@ -581,30 +546,31 @@ async def test_object_id_descriptor_naming():
     with pytest.raises(AttributeError):
         Foo.another2_id
 
-#     def test_category_select_related_alias(self):
-#         g1 = Category.create(name='g1')
-#         g2 = Category.create(name='g2')
 
-#         p1 = Category.create(name='p1', parent=g1)
-#         p2 = Category.create(name='p2', parent=g2)
+async def test_category_select_related_alias(flushdb):
+    g1 = await Category.create(name='g1')
+    g2 = await Category.create(name='g2')
 
-#         c1 = Category.create(name='c1', parent=p1)
-#         c11 = Category.create(name='c11', parent=p1)
-#         c2 = Category.create(name='c2', parent=p2)
+    p1 = await Category.create(name='p1', parent=g1)
+    p2 = await Category.create(name='p2', parent=g2)
 
-#         with assert_query_count(1):
-#             Grandparent = Category.alias()
-#             Parent = Category.alias()
-#             sq = (Category
-#                   .select(Category, Parent, Grandparent)
-#                   .join(Parent, on=(Category.parent == Parent.id))
-#                   .join(Grandparent, on=(Parent.parent == Grandparent.id))
-#                   .where(Grandparent.name == 'g1')
-#                   .order_by(Category.name))
+    c1 = await Category.create(name='c1', parent=p1)
+    c11 = await Category.create(name='c11', parent=p1)
+    c2 = await Category.create(name='c2', parent=p2)
 
-#             assert
-#                 [(c.name, c.parent.name, c.parent.parent.name) for c in sq],
-#                 [('c1', 'p1', 'g1'), ('c11', 'p1', 'g1')])
+    with assert_query_count(1):
+        Grandparent = Category.alias()
+        Parent = Category.alias()
+        sq = (Category
+              .select(Category, Parent, Grandparent)
+              .join(Parent, on=(Category.parent == Parent.id))
+              .join(Grandparent, on=(Parent.parent == Grandparent.id))
+              .where(Grandparent.name == 'g1')
+              .order_by(Category.name))
+
+        result = [(c.name, c.parent.name, c.parent.parent.name)
+                  async for c in sq]
+        assert result == [('c1', 'p1', 'g1'), ('c11', 'p1', 'g1')]
 
 
 async def test_save_fk(flushdb):
@@ -732,73 +698,75 @@ async def test_save_only_dirty_fields(flushdb):
     assert saved.title == 'baby huey'
     assert saved.content == 'mickey-nugget'
 
-#     def test_save_dirty_auto(self):
-#         User._meta.only_save_dirty = True
-#         Blog._meta.only_save_dirty = True
-#         try:
-#             with self.log_queries() as query_logger:
-#                 u = User.create(username='u1')
-#                 b = Blog.create(title='b1', user=u)
 
-#             # The default value for the blog content will be saved as well.
-#             assert
-#                 [params for _, params in query_logger.queries],
-#                 [['u1'], [u.id, 'b1', '']])
+async def test_save_dirty_auto(flushdb):
+    User._meta.only_save_dirty = True
+    Blog._meta.only_save_dirty = True
+    try:
+        with assert_query_count(2) as query_logger:
+            u = await User.create(username='u1')
+            b = await Blog.create(title='b1', user=u)
 
-#             with assert_query_count(0):
-#                 self.assertTrue(u.save() is False)
-#                 self.assertTrue(b.save() is False)
+        # The default value for the blog content will be saved as well.
+        params = [params for _, params in query_logger.queries()]
+        assert params == [['u1'], [u.id, 'b1', '']]
 
-#             u.username = 'u1-edited'
-#             b.title = 'b1-edited'
-#             with assert_query_count(1):
-#                 with self.log_queries() as query_logger:
-#                     assert u.save(), 1)
+        with assert_query_count(0):
+            assert await u.save() is False
+            assert await b.save() is False
 
-#             sql, params = query_logger.queries[0]
-#             self.assertTrue(sql.startswith('UPDATE'))
-#             assert params, ['u1-edited', u.id])
+        u.username = 'u1-edited'
+        b.title = 'b1-edited'
+        with assert_query_count(1) as query_logger:
+            assert await u.save() == 1
 
-#             with assert_query_count(1):
-#                 with self.log_queries() as query_logger:
-#                     assert b.save(), 1)
+        sql, params = query_logger.queries()[0]
+        assert sql.startswith('UPDATE')
+        assert params == ['u1-edited', u.id]
 
-#             sql, params = query_logger.queries[0]
-#             self.assertTrue(sql.startswith('UPDATE'))
-#             assert params, ['b1-edited', b.pk])
-#         finally:
-#             User._meta.only_save_dirty = False
-#             Blog._meta.only_save_dirty = False
+        with assert_query_count(1) as query_logger:
+            assert await b.save() == 1
 
-# async def test_zero_id(flushdb):
-#     if isinstance(db, MySQLDatabase):
-#         # Need to explicitly tell MySQL it's OK to use zero.
-#         await db.execute_sql("SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO'")
-#     query = 'insert into users (id, username) values ({}, {})'.format(
-#         db.interpolation, db.interpolation)
-
-#     db.execute_sql(query, (0, 'foo'))
-#     await Blog.insert(title='foo2', user=0).execute()
-
-#     u = await User.get(User.id == 0)
-#     b = await Blog.get(Blog.user == u)
-
-#     assert u == u
-#     assert u == b.user
+        sql, params = query_logger.queries()[0]
+        assert sql.startswith('UPDATE')
+        assert params == ['b1-edited', b.pk]
+    finally:
+        User._meta.only_save_dirty = False
+        Blog._meta.only_save_dirty = False
 
 
-# async def test_saving_via_create_gh111(flushdb):
-#     u = await User.create(username='u')
-#     b = await Blog.create(title='foo', user=u)
-#     last_sql, _ = self.queries()[-1]
-#     self.assertFalse('pub_date' in last_sql)
-#     assert b.pub_date, None)
+async def test_zero_id(flushdb):
+    if isinstance(db, MySQLDatabase):
+        # Need to explicitly tell MySQL it's OK to use zero.
+        await db.execute_sql("SET SESSION sql_mode='NO_AUTO_VALUE_ON_ZERO'")
+    query = 'insert into users (id, username) values ({}, {})'.format(
+        db.interpolation, db.interpolation)
 
-#     b2 = Blog(title='foo2', user=u)
-#     b2.save()
-#     last_sql, _ = self.queries()[-1]
-#     self.assertFalse('pub_date' in last_sql)
-#     assert b2.pub_date, None)
+    await db.execute_sql(query, (0, 'foo'))
+    await Blog.insert(title='foo2', user=0)
+
+    u = await User.get(User.id == 0)
+    b = await Blog.get(Blog.user == u)
+
+    assert u == u
+    assert u == await b.user
+
+
+async def test_saving_via_create_gh111(flushdb):
+    with assert_query_count(2) as qlh:
+        u = await User.create(username='u')
+        b = await Blog.create(title='foo', user=u)
+        last_sql = qlh.queries()[-1]
+        assert 'pub_date' not in last_sql
+        assert b.pub_date is None
+
+    with assert_query_count(1) as qlh:
+        b2 = Blog(title='foo2', user=u)
+        await b2.save()
+
+        last_sql = qlh.queries()[-1]
+        assert 'pub_date' not in last_sql
+        assert b2.pub_date is None
 
 
 async def test_reading(flushdb):
@@ -838,7 +806,6 @@ async def test_get_or_create(flushdb):
 
 
 async def test_get_or_create_extended(flushdb):
-    await GCModel.create_table()
     gc1, created = await GCModel.get_or_create(
         name='huey',
         key='k1',
@@ -879,65 +846,66 @@ async def test_get_or_create_extended(flushdb):
     assert gc2_db.id == gc2.id
 
     assert await GCModel.select().count() == 2
-    await GCModel.drop_table()
 
-#     def test_peek(self):
-#         users = User.create_users(3)
 
-#         with assert_query_count(1):
-#             sq = User.select().order_by(User.username)
+async def test_peek(flushdb):
+    users = await User.create_users(3)
 
-#             # call it once
-#             u1 = sq.peek()
-#             assert u1.username, 'u1')
+    with assert_query_count(1):
+        sq = User.select().order_by(User.username)
 
-#             # check the result cache
-#             assert len(sq._qr._result_cache), 1)
+        # call it once
+        u1 = await sq.peek()
+        assert u1.username == 'u1'
 
-#             # call it again and we get the same result, but not an
-#             # extra query
-#             assert sq.peek().username, 'u1')
+        # check the result cache
+        assert len(sq._qr._result_cache) == 1
 
-#         with assert_query_count(0):
-#             # no limit is applied.
-#             usernames = [u.username for u in sq]
-#             assert usernames, ['u1', 'u2', 'u3'])
+        # call it again and we get the same result, but not an
+        # extra query
+        assert (await sq.peek()).username == 'u1'
 
-#     def test_first(self):
-#         users = User.create_users(3)
+    with assert_query_count(0):
+        # no limit is applied.
+        usernames = [u.username async for u in sq]
+        assert usernames == ['u1', 'u2', 'u3']
 
-#         with assert_query_count(1):
-#             sq = User.select().order_by(User.username)
 
-#             # call it once
-#             first = sq.first()
-#             assert first.username, 'u1')
+async def test_first(flushdb):
+    users = await User.create_users(3)
 
-#             # check the result cache
-#             assert len(sq._qr._result_cache), 1)
+    with assert_query_count(1):
+        sq = User.select().order_by(User.username)
 
-#             # call it again and we get the same result, but not an
-#             # extra query
-#             assert sq.first().username, 'u1')
+        # call it once
+        first = await sq.first()
+        assert first.username == 'u1'
 
-#         with assert_query_count(0):
-#             # also note that a limit has been applied.
-#             all_results = [obj for obj in sq]
-#             assert all_results, [first])
+        # check the result cache
+        assert len(sq._qr._result_cache) == 1
 
-#             usernames = [u.username for u in sq]
-#             assert usernames, ['u1'])
+        # call it again and we get the same result, but not an
+        # extra query
+        assert (await sq.first()).username == 'u1'
 
-#         with assert_query_count(0):
-#             # call first() after iterating
-#             assert sq.first().username, 'u1')
+    with assert_query_count(0):
+        # also note that a limit has been applied.
+        all_results = [obj async for obj in sq]
+        assert all_results == [first]
 
-#             usernames = [u.username for u in sq]
-#             assert usernames, ['u1'])
+        usernames = [u.username async for u in sq]
+        assert usernames == ['u1']
 
-#         # call it with an empty result
-#         sq = User.select().where(User.username == 'not-here')
-#         assert sq.first(), None)
+    with assert_query_count(0):
+        # call first() after iterating
+        assert (await sq.first()).username == 'u1'
+
+        usernames = [u.username async for u in sq]
+        assert usernames == ['u1']
+
+    # call it with an empty result
+    sq = User.select().where(User.username == 'not-here')
+    assert await sq.first() is None
 
 
 async def test_deleting(flushdb):
@@ -951,34 +919,34 @@ async def test_deleting(flushdb):
     assert u2 == await User.get(User.username=='u2')
 
 
-# async def test_counting(flushdb):
-#     u1 = await User.create(username='u1')
-#     u2 = await User.create(username='u2')
+async def test_counting(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
 
-#     for u in [u1, u2]:
-#         for i in range(5):
-#             await Blog.create(title=f'b-{u.username}-{i}', user=u)
+    for u in [u1, u2]:
+        for i in range(5):
+            await Blog.create(title=f'b-{u.username}-{i}', user=u)
 
-#     uc = User.select().where(User.username == 'u1').join(Blog).count()
-#     assert await uc == 5
+    uc = User.select().where(User.username == 'u1').join(Blog).count()
+    assert await uc == 5
 
-#     uc = User.select().where(User.username == 'u1').join(Blog).distinct().count()
-#     assert await uc == 1
+    uc = User.select().where(User.username == 'u1').join(Blog).distinct().count()
+    assert await uc == 1
 
-#     assert await Blog.select().limit(4).offset(3).count() == 4
-#     assert await Blog.select().limit(4).offset(3).count(True) == 10
+    assert await Blog.select().limit(4).offset(3).count() == 4
+    assert await Blog.select().limit(4).offset(3).count(True) == 10
 
-#     # Calling `distinct()` will result in a call to wrapped_count().
-#     uc = User.select().join(Blog).distinct().count()
-#     assert await uc == 2
+    # Calling `distinct()` will result in a call to wrapped_count().
+    uc = User.select().join(Blog).distinct().count()
+    assert await uc == 2
 
-#     # Test with clear limit = True.
-#     assert await User.select().limit(1).count(clear_limit=True) == 2
-#     assert await User.select().limit(1).wrapped_count(clear_limit=True) == 2
+    # Test with clear limit = True.
+    assert await User.select().limit(1).count(clear_limit=True) == 2
+    assert await User.select().limit(1).wrapped_count(clear_limit=True) == 2
 
-#     # Test with clear limit = False.
-#     assert await User.select().limit(1).count(clear_limit=False) == 1
-#     assert await User.select().limit(1).wrapped_count(clear_limit=False) == 1
+    # Test with clear limit = False.
+    assert await User.select().limit(1).count(clear_limit=False) == 1
+    assert await User.select().limit(1).wrapped_count(clear_limit=False) == 1
 
 
 async def test_ordering(flushdb):
@@ -1000,6 +968,7 @@ async def test_ordering(flushdb):
 
 #     count = Blog.select().count()
 #     assert count == 200
+
 
 async def test_exists(flushdb):
     u1 = await User.create(username='u1')
@@ -1033,54 +1002,58 @@ async def test_unicode(flushdb):
     # we get unicode back
     assert u2_db.username == ustr
 
-#     def test_unicode_issue202(self):
-#         ustr = ulit('M\u00f6rk')
-#         user = User.create(username=ustr)
-#         assert user.username, ustr)
 
-#     def test_on_conflict(self):
-#         gc = GCModel.create(name='g1', key='k1', value='v1')
-#         query = GCModel.insert(
-#             name='g1',
-#             key='k2',
-#             value='v2')
-#         self.assertRaises(IntegrityError, query.execute)
+async def test_unicode_issue202(flushdb):
+    ustr = 'M\u00f6rk'
+    user = await User.create(username=ustr)
+    assert user.username == ustr
 
-#         # Ensure that we can ignore errors.
-#         res = query.on_conflict('IGNORE').execute()
-#         assert res, gc.id)
-#         assert GCModel.select().count(), 1)
 
-#         # Error ignored, no changes.
-#         gc_db = GCModel.get()
-#         assert gc_db.name, 'g1')
-#         assert gc_db.key, 'k1')
-#         assert gc_db.value, 'v1')
+# async def test_on_conflict(flushdb):
+#     gc = await GCModel.create(name='g1', key='k1', value='v1')
+#     query = GCModel.insert(
+#         name='g1',
+#         key='k2',
+#         value='v2')
+#     with pytest.raises(IntegrityError):
+#         await query.execute()
 
-#         # Replace the old, conflicting row, with the new data.
-#         res = query.on_conflict('REPLACE').execute()
-#         self.assertNotEqual(res, gc.id)
-#         assert GCModel.select().count(), 1)
+#     # Ensure that we can ignore errors.
+#     res = await query.on_conflict('IGNORE').execute()
+#     assert res == gc.id
+#     assert await GCModel.select().count() == 1
 
-#         gc_db = GCModel.get()
-#         assert gc_db.name, 'g1')
-#         assert gc_db.key, 'k2')
-#         assert gc_db.value, 'v2')
+#     # Error ignored, no changes.
+#     gc_db = await GCModel.get()
+#     assert gc_db.name == 'g1'
+#     assert gc_db.key == 'k1'
+#     assert gc_db.value == 'v1'
 
-#         # Replaces also can occur when violating multi-column indexes.
-#         query = GCModel.insert(
-#             name='g2',
-#             key='k2',
-#             value='v2').on_conflict('REPLACE')
+#     # Replace the old, conflicting row, with the new data.
+#     res = await query.on_conflict('REPLACE').execute()
+#     assert res != gc.id
+#     assert await GCModel.select().count() == 1
 
-#         res = query.execute()
-#         self.assertNotEqual(res, gc_db.id)
-#         assert GCModel.select().count(), 1)
+#     gc_db = await GCModel.get()
+#     assert gc_db.name == 'g1'
+#     assert gc_db.key == 'k2'
+#     assert gc_db.value == 'v2'
 
-#         gc_db = GCModel.get()
-#         assert gc_db.name, 'g2')
-#         assert gc_db.key, 'k2')
-#         assert gc_db.value, 'v2')
+#     # Replaces also can occur when violating multi-column indexes.
+#     query = GCModel.insert(
+#         name='g2',
+#         key='k2',
+#         value='v2').on_conflict('REPLACE')
+
+#     res = await query.execute()
+#     assert res != gc_db.id
+#     assert await GCModel.select().count() == 1
+
+#     gc_db = await GCModel.get()
+#     assert gc_db.name == 'g2'
+#     assert gc_db.key == 'k2'
+#     assert gc_db.value == 'v2'
+
 
 #     def test_on_conflict_many(self):
 #         if not SqliteDatabase.insert_many:
@@ -1109,66 +1082,63 @@ async def test_unicode(flushdb):
 #             [gc.key for gc in last_five],
 #             ['x-gc5', 'x-gc6', 'x-gc7', 'x-gc8', 'x-gc9'])
 
-#     def test_meta_get_field_index(self):
-#         index = Blog._meta.get_field_index(Blog.content)
-#         assert index, 3)
 
-#     def test_meta_remove_field(self):
-
-#         class _Model(Model):
-#             title = CharField(max_length=25)
-#             content = TextField(default='')
-
-#         _Model._meta.remove_field('content')
-#         self.assertTrue('content' not in _Model._meta.fields)
-#         self.assertTrue('content' not in _Model._meta.sorted_field_names)
-#         assert [f.name for f in _Model._meta.sorted_fields],
-#                          ['id', 'title'])
-
-#     def test_meta_rel_for_model(self):
-#         class User(Model):
-#             pass
-#         class Category(Model):
-#             parent = ForeignKeyField('self')
-#         class Tweet(Model):
-#             user = ForeignKeyField(User)
-#         class Relationship(Model):
-#             from_user = ForeignKeyField(User, related_name='r1')
-#             to_user = ForeignKeyField(User, related_name='r2')
-
-#         UM = User._meta
-#         CM = Category._meta
-#         TM = Tweet._meta
-#         RM = Relationship._meta
-
-#         # Simple refs work.
-#         self.assertIsNone(UM.rel_for_model(Tweet))
-#         assert UM.rel_for_model(Tweet, multi=True), [])
-#         assert UM.reverse_rel_for_model(Tweet), Tweet.user)
-#         assert UM.reverse_rel_for_model(Tweet, multi=True),
-#                          [Tweet.user])
-
-#         # Multi fks.
-#         assert RM.rel_for_model(User), Relationship.from_user)
-#         assert RM.rel_for_model(User, multi=True),
-#                          [Relationship.from_user, Relationship.to_user])
-
-#         assert UM.reverse_rel_for_model(Relationship),
-#                          Relationship.from_user)
-#         assert UM.reverse_rel_for_model(Relationship, multi=True),
-#                          [Relationship.from_user, Relationship.to_user])
-
-#         # Self-refs work.
-#         assert CM.rel_for_model(Category), Category.parent)
-#         assert CM.reverse_rel_for_model(Category), Category.parent)
-
-#         # Field aliases work.
-#         UA = User.alias()
-#         assert TM.rel_for_model(UA), Tweet.user)
+async def test_meta_get_field_index():
+    index = Blog._meta.get_field_index(Blog.content)
+    assert index == 3
 
 
-# class TestAggregatesWithModels(ModelTestCase):
-#     requires = [OrderedModel, User, Blog]
+async def test_meta_remove_field():
+
+    class _Model(Model):
+        title = CharField(max_length=25)
+        content = TextField(default='')
+
+    _Model._meta.remove_field('content')
+    assert 'content' not in _Model._meta.fields
+    assert 'content' not in _Model._meta.sorted_field_names
+    assert [f.name for f in _Model._meta.sorted_fields] == ['id', 'title']
+
+
+async def test_meta_rel_for_model():
+    class User(Model):
+        pass
+    class Category(Model):
+        parent = ForeignKeyField('self')
+    class Tweet(Model):
+        user = ForeignKeyField(User)
+    class Relationship(Model):
+        from_user = ForeignKeyField(User, related_name='r1')
+        to_user = ForeignKeyField(User, related_name='r2')
+
+    UM = User._meta
+    CM = Category._meta
+    TM = Tweet._meta
+    RM = Relationship._meta
+
+    # Simple refs work.
+    assert UM.rel_for_model(Tweet) is None
+    assert UM.rel_for_model(Tweet, multi=True) == []
+    assert UM.reverse_rel_for_model(Tweet) == Tweet.user
+    assert UM.reverse_rel_for_model(Tweet, multi=True) == [Tweet.user]
+
+    # Multi fks.
+    assert RM.rel_for_model(User) == Relationship.from_user
+    assert RM.rel_for_model(User, multi=True) == [Relationship.from_user,
+                                                  Relationship.to_user]
+
+    assert UM.reverse_rel_for_model(Relationship) == Relationship.from_user
+
+    exp = [Relationship.from_user, Relationship.to_user]
+    assert UM.reverse_rel_for_model(Relationship, multi=True) == exp
+
+    # Self-refs work.
+    assert CM.rel_for_model(Category) == Category.parent
+    assert CM.reverse_rel_for_model(Category) == Category.parent
+
+    # Field aliases work.
+    UA = User.alias()
+    assert TM.rel_for_model(UA) == Tweet.user
 
 
 async def create_ordered_models():
@@ -1407,17 +1377,6 @@ async def test_join_on_query(flushdb):
 #         ]
 #         self.assertQueriesEqual(queries, sql_params)
 
-#     def assertQueriesEqual(self, queries, expected):
-#         queries.sort()
-#         expected.sort()
-#         for i in range(len(queries)):
-#             sql, params = queries[i]
-#             expected_sql, expected_params = expected[i]
-#             expected_sql = (expected_sql
-#                             .replace('`', test_db.quote_char)
-#                             .replace('%%', test_db.interpolation))
-#             assert sql, expected_sql)
-#             assert params, expected_params)
 
 #     def test_recursive_update(self):
 #         self.p1.delete_instance(recursive=True)
@@ -1485,117 +1444,135 @@ async def test_join_on_query(flushdb):
 #     assert u.id == 1
 
 
-# class TestManyToMany(ModelTestCase):
-#     requires = [User, Category, UserCategory]
-
-#     def setUp(self):
-#         super(TestManyToMany, self).setUp()
-#         users = ['u1', 'u2', 'u3']
-#         categories = ['c1', 'c2', 'c3', 'c12', 'c23']
-#         user_to_cat = {
-#             'u1': ['c1', 'c12'],
-#             'u2': ['c2', 'c12', 'c23'],
-#         }
-#         for u in users:
-#             User.create(username=u)
-#         for c in categories:
-#             Category.create(name=c)
-#         for user, categories in user_to_cat.items():
-#             user = User.get(User.username == user)
-#             for category in categories:
-#                 UserCategory.create(
-#                     user=user,
-#                     category=Category.get(Category.name == category))
-
-#     def test_m2m(self):
-#         def aU(q, exp):
-#             assert [u.username for u in q.order_by(User.username)], exp)
-#         def aC(q, exp):
-#             assert [c.name for c in q.order_by(Category.name)], exp)
-
-#         users = User.select().join(UserCategory).join(Category).where(Category.name == 'c1')
-#         aU(users, ['u1'])
-
-#         users = User.select().join(UserCategory).join(Category).where(Category.name == 'c3')
-#         aU(users, [])
-
-#         cats = Category.select().join(UserCategory).join(User).where(User.username == 'u1')
-#         aC(cats, ['c1', 'c12'])
-
-#         cats = Category.select().join(UserCategory).join(User).where(User.username == 'u2')
-#         aC(cats, ['c12', 'c2', 'c23'])
-
-#         cats = Category.select().join(UserCategory).join(User).where(User.username == 'u3')
-#         aC(cats, [])
-
-#         cats = Category.select().join(UserCategory).join(User).where(
-#             Category.name << ['c1', 'c2', 'c3']
-#         )
-#         aC(cats, ['c1', 'c2'])
-
-#         cats = Category.select().join(UserCategory, JOIN.LEFT_OUTER).join(User, JOIN.LEFT_OUTER).where(
-#             Category.name << ['c1', 'c2', 'c3']
-#         )
-#         aC(cats, ['c1', 'c2', 'c3'])
-
-#     def test_many_to_many_prefetch(self):
-#         categories = Category.select().order_by(Category.name)
-#         user_categories = UserCategory.select().order_by(UserCategory.id)
-#         users = User.select().order_by(User.username)
-#         results = {}
-#         result_list = []
-#         with assert_query_count(3):
-#             query = prefetch(categories, user_categories, users)
-#             for category in query:
-#                 results.setdefault(category.name, set())
-#                 result_list.append(category.name)
-#                 for user_category in category.usercategory_set_prefetch:
-#                     results[category.name].add(user_category.user.username)
-#                     result_list.append(user_category.user.username)
-
-#         assert results, {
-#             'c1': set(['u1']),
-#             'c12': set(['u1', 'u2']),
-#             'c2': set(['u2']),
-#             'c23': set(['u2']),
-#             'c3': set(),
-#         })
-#         assert
-#             sorted(result_list),
-#             ['c1', 'c12', 'c2', 'c23', 'c3', 'u1', 'u1', 'u2', 'u2', 'u2'])
+async def create_many_to_many():
+    users = ['u1', 'u2', 'u3']
+    categories = ['c1', 'c2', 'c3', 'c12', 'c23']
+    user_to_cat = {
+        'u1': ['c1', 'c12'],
+        'u2': ['c2', 'c12', 'c23'],
+    }
+    for u in users:
+        await User.create(username=u)
+    for c in categories:
+        await Category.create(name=c)
+    for user, categories in user_to_cat.items():
+        user = await User.get(User.username == user)
+        for category in categories:
+            category = await Category.get(Category.name == category)
+            await UserCategory.create(user=user, category=category)
 
 
-# class TestCustomModelOptionsBase(PeeweeTestCase):
-#     def test_custom_model_options_base(self):
-#         db = SqliteDatabase(None)
+async def test_m2m(flushdb):
+    await create_many_to_many()
 
-#         class DatabaseDescriptor(object):
-#             def __init__(self, db):
-#                 self._db = db
+    async def aU(q, exp):
+        assert [u.username async for u in q.order_by(User.username)] == exp
 
-#             def __get__(self, instance_type, instance):
-#                 if instance is not None:
-#                     return self._db
-#                 return self
+    async def aC(q, exp):
+        assert [c.name async for c in q.order_by(Category.name)] == exp
 
-#             def __set__(self, instance, value):
-#                 pass
+    users = (User.select()
+                 .join(UserCategory)
+                 .join(Category)
+                 .where(Category.name == 'c1'))
+    await aU(users, ['u1'])
 
-#         class TestModelOptions(ModelOptions):
-#             database = DatabaseDescriptor(db)
+    users = (User.select()
+                 .join(UserCategory)
+                 .join(Category)
+                 .where(Category.name == 'c3'))
+    await aU(users, [])
 
-#         class BaseModel(Model):
-#             class Meta:
-#                 model_options_base = TestModelOptions
+    cats = (Category.select()
+                    .join(UserCategory)
+                    .join(User)
+                    .where(User.username == 'u1'))
+    await aC(cats, ['c1', 'c12'])
 
-#         class TestModel(BaseModel):
-#             pass
+    cats = (Category.select()
+                    .join(UserCategory)
+                    .join(User)
+                    .where(User.username == 'u2'))
+    await aC(cats, ['c12', 'c2', 'c23'])
 
-#         class TestChildModel(TestModel):
-#             pass
+    cats = (Category.select()
+                    .join(UserCategory)
+                    .join(User)
+                    .where(User.username == 'u3'))
+    await aC(cats, [])
 
-#         assert id(TestModel._meta.database), id(db))
-#         assert id(TestChildModel._meta.database), id(db))
+    cats = (Category.select()
+                    .join(UserCategory)
+                    .join(User)
+                    .where(Category.name << ['c1', 'c2', 'c3']))
+    await aC(cats, ['c1', 'c2'])
+
+    cats = (Category.select()
+                    .join(UserCategory, JOIN.LEFT_OUTER)
+                    .join(User, JOIN.LEFT_OUTER)
+                    .where(Category.name << ['c1', 'c2', 'c3']))
+    await aC(cats, ['c1', 'c2', 'c3'])
+
+
+# async def test_many_to_many_prefetch(flushdb):
+#     await create_many_to_many()
+
+#     categories = Category.select().order_by(Category.name)
+#     user_categories = UserCategory.select().order_by(UserCategory.id)
+#     users = User.select().order_by(User.username)
+#     results = {}
+#     result_list = []
+#     with assert_query_count(3):
+#         query = prefetch(categories, user_categories, users)
+#         for category in query:
+#             results.setdefault(category.name, set())
+#             result_list.append(category.name)
+#             for user_category in category.usercategory_set_prefetch:
+#                 results[category.name].add(user_category.user.username)
+#                 result_list.append(user_category.user.username)
+
+#     assert results, {
+#         'c1': set(['u1']),
+#         'c12': set(['u1', 'u2']),
+#         'c2': set(['u2']),
+#         'c23': set(['u2']),
+#         'c3': set(),
+#     })
+#     assert
+#         sorted(result_list),
+#         ['c1', 'c12', 'c2', 'c23', 'c3', 'u1', 'u1', 'u2', 'u2', 'u2'])
+
+
+async def test_custom_model_options_base(database):
+    db = database
+
+    class DatabaseDescriptor(object):
+        def __init__(self, db):
+            self._db = db
+
+        def __get__(self, instance_type, instance):
+            if instance is not None:
+                return self._db
+            return self
+
+        def __set__(self, instance, value):
+            pass
+
+    class TestModelOptions(ModelOptions):
+        database = DatabaseDescriptor(db)
+
+    class BaseModel(Model):
+        class Meta:
+            model_options_base = TestModelOptions
+
+    class TestModel(BaseModel):
+        pass
+
+    class TestChildModel(TestModel):
+        pass
+
+    assert id(TestModel._meta.database) == id(db)
+    assert id(TestChildModel._meta.database) == id(db)
 
 
 async def test_db_table(flushdb):
@@ -1614,151 +1591,154 @@ async def test_db_table(flushdb):
     assert Foo_3._meta.db_table == 'foo_3'
 
 
-#     def test_custom_options(self):
-#         class A(Model):
-#             class Meta:
-#                 a = 'a'
+async def test_custom_options():
+    class A(Model):
+        class Meta:
+            a = 'a'
 
-#         class B1(A):
-#             class Meta:
-#                 b = 1
+    class B1(A):
+        class Meta:
+            b = 1
 
-#         class B2(A):
-#             class Meta:
-#                 b = 2
+    class B2(A):
+        class Meta:
+            b = 2
 
-#         assert A._meta.a, 'a')
-#         assert B1._meta.a, 'a')
-#         assert B2._meta.a, 'a')
-#         assert B1._meta.b, 1)
-#         assert B2._meta.b, 2)
-
-#     def test_option_inheritance(self):
-#         x_test_db = SqliteDatabase('testing.db')
-#         child2_db = SqliteDatabase('child2.db')
-
-#         class FakeUser(Model):
-#             pass
-
-#         class ParentModel(Model):
-#             title = CharField()
-#             user = ForeignKeyField(FakeUser)
-
-#             class Meta:
-#                 database = x_test_db
-
-#         class ChildModel(ParentModel):
-#             pass
-
-#         class ChildModel2(ParentModel):
-#             special_field = CharField()
-
-#             class Meta:
-#                 database = child2_db
-
-#         class GrandChildModel(ChildModel):
-#             pass
-
-#         class GrandChildModel2(ChildModel2):
-#             special_field = TextField()
-
-#         assert ParentModel._meta.database.database, 'testing.db')
-#         assert ParentModel._meta.model_class, ParentModel)
-
-#         assert ChildModel._meta.database.database, 'testing.db')
-#         assert ChildModel._meta.model_class, ChildModel)
-#         assert sorted(ChildModel._meta.fields.keys()), [
-#             'id', 'title', 'user'
-#         ])
-
-#         assert ChildModel2._meta.database.database, 'child2.db')
-#         assert ChildModel2._meta.model_class, ChildModel2)
-#         assert sorted(ChildModel2._meta.fields.keys()), [
-#             'id', 'special_field', 'title', 'user'
-#         ])
-
-#         assert GrandChildModel._meta.database.database, 'testing.db')
-#         assert GrandChildModel._meta.model_class, GrandChildModel)
-#         assert sorted(GrandChildModel._meta.fields.keys()), [
-#             'id', 'title', 'user'
-#         ])
-
-#         assert GrandChildModel2._meta.database.database, 'child2.db')
-#         assert GrandChildModel2._meta.model_class, GrandChildModel2)
-#         assert sorted(GrandChildModel2._meta.fields.keys()), [
-#             'id', 'special_field', 'title', 'user'
-#         ])
-#         self.assertTrue(isinstance(GrandChildModel2._meta.fields['special_field'], TextField))
-
-#     def test_order_by_inheritance(self):
-#         class Base(TestModel):
-#             created = DateTimeField()
-
-#             class Meta:
-#                 order_by = ('-created',)
-
-#         class Foo(Base):
-#             data = CharField()
-
-#         class Bar(Base):
-#             val = IntegerField()
-#             class Meta:
-#                 order_by = ('-val',)
-
-#         foo_order_by = Foo._meta.order_by[0]
-#         self.assertTrue(isinstance(foo_order_by, Field))
-#         self.assertTrue(foo_order_by.model_class is Foo)
-#         assert foo_order_by.name, 'created')
-
-#         bar_order_by = Bar._meta.order_by[0]
-#         self.assertTrue(isinstance(bar_order_by, Field))
-#         self.assertTrue(bar_order_by.model_class is Bar)
-#         assert bar_order_by.name, 'val')
-
-#     def test_table_name_function(self):
-#         class Base(TestModel):
-#             class Meta:
-#                 def db_table_func(model):
-#                     return model.__name__.lower() + 's'
-
-#         class User(Base):
-#             pass
-
-#         class SuperUser(User):
-#             class Meta:
-#                 db_table = 'nugget'
-
-#         class MegaUser(SuperUser):
-#             class Meta:
-#                 def db_table_func(model):
-#                     return 'mega'
-
-#         class Bear(Base):
-#             pass
-
-#         assert User._meta.db_table, 'users')
-#         assert Bear._meta.db_table, 'bears')
-#         assert SuperUser._meta.db_table, 'nugget')
-#         assert MegaUser._meta.db_table, 'mega')
+    assert A._meta.a == 'a'
+    assert B1._meta.a == 'a'
+    assert B2._meta.a == 'a'
+    assert B1._meta.b == 1
+    assert B2._meta.b == 2
 
 
-# class TestModelInheritance(ModelTestCase):
-#     requires = [Blog, BlogTwo, User]
+# def test_option_inheritance(self):
+#     x_test_db = SqliteDatabase('testing.db')
+#     child2_db = SqliteDatabase('child2.db')
 
-#     def test_model_inheritance_attrs(self):
-#         assert Blog._meta.sorted_field_names, ['pk', 'user', 'title', 'content', 'pub_date'])
-#         assert BlogTwo._meta.sorted_field_names, ['pk', 'user', 'content', 'pub_date', 'title', 'extra_field'])
+#     class FakeUser(Model):
+#         pass
 
-#         assert Blog._meta.primary_key.name, 'pk')
-#         assert BlogTwo._meta.primary_key.name, 'pk')
+#     class ParentModel(Model):
+#         title = CharField()
+#         user = ForeignKeyField(FakeUser)
 
-#         assert Blog.user.related_name, 'blog_set')
-#         assert BlogTwo.user.related_name, 'blogtwo_set')
+#         class Meta:
+#             database = x_test_db
 
-#         assert User.blog_set.rel_model, Blog)
-#         assert User.blogtwo_set.rel_model, BlogTwo)
+#     class ChildModel(ParentModel):
+#         pass
 
-#         self.assertFalse(BlogTwo._meta.db_table == Blog._meta.db_table)
+#     class ChildModel2(ParentModel):
+#         special_field = CharField()
+
+#         class Meta:
+#             database = child2_db
+
+#     class GrandChildModel(ChildModel):
+#         pass
+
+#     class GrandChildModel2(ChildModel2):
+#         special_field = TextField()
+
+#     assert ParentModel._meta.database.database, 'testing.db')
+#     assert ParentModel._meta.model_class, ParentModel)
+
+#     assert ChildModel._meta.database.database, 'testing.db')
+#     assert ChildModel._meta.model_class, ChildModel)
+#     assert sorted(ChildModel._meta.fields.keys()), [
+#         'id', 'title', 'user'
+#     ])
+
+#     assert ChildModel2._meta.database.database, 'child2.db')
+#     assert ChildModel2._meta.model_class, ChildModel2)
+#     assert sorted(ChildModel2._meta.fields.keys()), [
+#         'id', 'special_field', 'title', 'user'
+#     ])
+
+#     assert GrandChildModel._meta.database.database, 'testing.db')
+#     assert GrandChildModel._meta.model_class, GrandChildModel)
+#     assert sorted(GrandChildModel._meta.fields.keys()), [
+#         'id', 'title', 'user'
+#     ])
+
+#     assert GrandChildModel2._meta.database.database, 'child2.db')
+#     assert GrandChildModel2._meta.model_class, GrandChildModel2)
+#     assert sorted(GrandChildModel2._meta.fields.keys()), [
+#         'id', 'special_field', 'title', 'user'
+#     ])
+#     self.assertTrue(isinstance(GrandChildModel2._meta.fields['special_field'], TextField))
+
+
+async def test_order_by_inheritance():
+    class Base(TestModel):
+        created = DateTimeField()
+
+        class Meta:
+            order_by = ('-created',)
+
+    class Foo(Base):
+        data = CharField()
+
+    class Bar(Base):
+        val = IntegerField()
+        class Meta:
+            order_by = ('-val',)
+
+    foo_order_by = Foo._meta.order_by[0]
+    assert isinstance(foo_order_by, Field)
+    assert foo_order_by.model_class is Foo
+    assert foo_order_by.name == 'created'
+
+    bar_order_by = Bar._meta.order_by[0]
+    assert isinstance(bar_order_by, Field)
+    assert bar_order_by.model_class is Bar
+    assert bar_order_by.name == 'val'
+
+
+async def test_table_name_function():
+    class Base(TestModel):
+        class Meta:
+            def db_table_func(model):
+                return model.__name__.lower() + 's'
+
+    class User(Base):
+        pass
+
+    class SuperUser(User):
+        class Meta:
+            db_table = 'nugget'
+
+    class MegaUser(SuperUser):
+        class Meta:
+            def db_table_func(model):
+                return 'mega'
+
+    class Bear(Base):
+        pass
+
+    assert User._meta.db_table == 'users'
+    assert Bear._meta.db_table == 'bears'
+    assert SuperUser._meta.db_table == 'nugget'
+    assert MegaUser._meta.db_table == 'mega'
+
+
+async def test_model_inheritance_attrs():
+    exp = ['pk', 'user', 'title', 'content', 'pub_date']
+    assert Blog._meta.sorted_field_names == exp
+
+    exp = ['pk', 'user', 'content', 'pub_date', 'title', 'extra_field']
+    assert BlogTwo._meta.sorted_field_names == exp
+
+    assert Blog._meta.primary_key.name == 'pk'
+    assert BlogTwo._meta.primary_key.name == 'pk'
+
+    assert Blog.user.related_name == 'blog_set'
+    assert BlogTwo.user.related_name == 'blogtwo_set'
+
+    assert User.blog_set.rel_model == Blog
+    assert User.blogtwo_set.rel_model == BlogTwo
+
+    assert BlogTwo._meta.db_table != Blog._meta.db_table
 
 
 async def test_model_inheritance_flow(flushdb):
@@ -2141,10 +2121,6 @@ async def test_hash():
     assert d[mn] == 'mn'
 
 
-# class TestDeleteNullableForeignKeys(ModelTestCase):
-#     requires = [User, Note, Flag, NoteFlagNullable]
-
-
 async def test_delete_nullable(flushdb):
     u = await User.create(username='u')
     n = await Note.create(user=u, text='n')
@@ -2160,143 +2136,144 @@ async def test_delete_nullable(flushdb):
     assert await nf4.delete_instance() == 1
 
 
-# class TestJoinNullableForeignKey(ModelTestCase):
-#     requires = [Parent, Orphan, Child]
+async def create_parent_orphan_child():
+    p1 = await Parent.create(data='p1')
+    p2 = await Parent.create(data='p2')
+    for i in range(1, 3):
+        await Child.create(parent=p1, data='child%s-p1' % i)
+        await Child.create(parent=p2, data='child%s-p2' % i)
+        await Orphan.create(parent=p1, data='orphan%s-p1' % i)
 
-#     def setUp(self):
-#         super(TestJoinNullableForeignKey, self).setUp()
-
-#         p1 = Parent.create(data='p1')
-#         p2 = Parent.create(data='p2')
-#         for i in range(1, 3):
-#             Child.create(parent=p1, data='child%s-p1' % i)
-#             Child.create(parent=p2, data='child%s-p2' % i)
-#             Orphan.create(parent=p1, data='orphan%s-p1' % i)
-
-#         Orphan.create(data='orphan1-noparent')
-#         Orphan.create(data='orphan2-noparent')
-
-#     def test_no_empty_instances(self):
-#         with assert_query_count(1):
-#             query = (Orphan
-#                      .select(Orphan, Parent)
-#                      .join(Parent, JOIN.LEFT_OUTER)
-#                      .order_by(Orphan.id))
-#             res = [(orphan.data, orphan.parent is None) for orphan in query]
-
-#         assert res, [
-#             ('orphan1-p1', False),
-#             ('orphan2-p1', False),
-#             ('orphan1-noparent', True),
-#             ('orphan2-noparent', True),
-#         ])
-
-#     def test_unselected_fk_pk(self):
-#         with assert_query_count(1):
-#             query = (Orphan
-#                      .select(Orphan.data, Parent.data)
-#                      .join(Parent, JOIN.LEFT_OUTER)
-#                      .order_by(Orphan.id))
-#             res = [(orphan.data, orphan.parent is None) for orphan in query]
-
-#         assert res, [
-#             ('orphan1-p1', False),
-#             ('orphan2-p1', False),
-#             ('orphan1-noparent', False),
-#             ('orphan2-noparent', False),
-#         ])
-
-#     def test_non_null_fk_unselected_fk(self):
-#         with assert_query_count(1):
-#             query = (Child
-#                      .select(Child.data, Parent.data)
-#                      .join(Parent, JOIN.LEFT_OUTER)
-#                      .order_by(Child.id))
-#             res = [(child.data, child.parent is None) for child in query]
-
-#         assert res, [
-#             ('child1-p1', False),
-#             ('child1-p2', False),
-#             ('child2-p1', False),
-#             ('child2-p2', False),
-#         ])
-
-#         res = [child.parent.data for child in query]
-#         assert res, ['p1', 'p2', 'p1', 'p2'])
-
-#         res = [(child._data['parent'], child.parent.id) for child in query]
-#         assert res, [
-#             (None, None),
-#             (None, None),
-#             (None, None),
-#             (None, None),
-#         ])
+    await Orphan.create(data='orphan1-noparent')
+    await Orphan.create(data='orphan2-noparent')
 
 
-# class TestDefaultDirtyBehavior(PeeweeTestCase):
-#     def setUp(self):
-#         super(TestDefaultDirtyBehavior, self).setUp()
-#         DefaultsModel.drop_table(True)
-#         DefaultsModel.create_table()
+async def test_no_empty_instances(flushdb):
+    await create_parent_orphan_child()
 
-#     def test_default_dirty(self):
-#         DM = DefaultsModel
-#         DM._meta.only_save_dirty = True
+    with assert_query_count(1):
+        query = (Orphan
+                 .select(Orphan, Parent)
+                 .join(Parent, JOIN.LEFT_OUTER)
+                 .order_by(Orphan.id))
+        res = [(orphan.data, orphan.parent is None) async for orphan in query]
 
-#         dm = DM()
-#         dm.save()
-
-#         assert dm.field, 1)
-#         assert dm.control, 1)
-
-#         dm_db = DM.get((DM.field == 1) & (DM.control == 1))
-#         assert dm_db.field, 1)
-#         assert dm_db.control, 1)
-
-#         # No changes.
-#         self.assertFalse(dm_db.save())
-
-#         dm2 = DM.create()
-#         assert dm2.field, 3)  # One extra when fetched from DB.
-#         assert dm2.control, 1)
-
-#         dm._meta.only_save_dirty = False
-
-#         dm3 = DM()
-#         assert dm3.field, 4)
-#         assert dm3.control, 1)
-#         dm3.save()
-
-#         dm3_db = DM.get(DM.id == dm3.id)
-#         assert dm3_db.field, 4)
+    assert res == [
+        ('orphan1-p1', False),
+        ('orphan2-p1', False),
+        ('orphan1-noparent', True),
+        ('orphan2-noparent', True),
+    ]
 
 
+async def test_unselected_fk_pk(flushdb):
+    await create_parent_orphan_child()
 
-# def test_function_coerce(self):
-#     class M1(Model):
-#         data = IntegerField()
-#         class Meta:
-#             database = in_memory_db
+    with assert_query_count(1):
+        query = (Orphan
+                 .select(Orphan.data, Parent.data)
+                 .join(Parent, JOIN.LEFT_OUTER)
+                 .order_by(Orphan.id))
+        res = [(orphan.data, orphan.parent is None) async for orphan in query]
 
-#     class M2(Model):
-#         id = IntegerField()
-#         class Meta:
-#             database = in_memory_db
+    assert res == [
+        ('orphan1-p1', False),
+        ('orphan2-p1', False),
+        ('orphan1-noparent', False),
+        ('orphan2-noparent', False),
+    ]
 
-#     in_memory_db.create_tables([M1, M2])
 
-#     for i in range(3):
-#         M1.create(data=i)
-#         M2.create(id=i + 1)
+async def test_non_null_fk_unselected_fk(flushdb):
+    await create_parent_orphan_child()
 
-#     qm1 = M1.select(fn.GROUP_CONCAT(M1.data).coerce(False).alias('data'))
-#     qm2 = M2.select(fn.GROUP_CONCAT(M2.id).coerce(False).alias('ids'))
+    with assert_query_count(1):
+        query = (Child
+                 .select(Child.data, Parent.data)
+                 .join(Parent, JOIN.LEFT_OUTER)
+                 .order_by(Child.id))
+        res = [(child.data, child.parent is None) async for child in query]
 
-#     m1 = qm1.get()
-#     assert m1.data, '0,1,2')
+    assert res == [
+        ('child1-p1', False),
+        ('child1-p2', False),
+        ('child2-p1', False),
+        ('child2-p2', False),
+    ]
 
-#     m2 = qm2.get()
-#     assert m2.ids, '1,2,3')
+    res = [child.parent.data async for child in query]
+    assert res == ['p1', 'p2', 'p1', 'p2']
+
+    res = [(child._data['parent'], child.parent.id) async for child in query]
+    assert res == [
+        (None, None),
+        (None, None),
+        (None, None),
+        (None, None),
+    ]
+
+
+async def test_default_dirty(flushdb):
+    DM = DefaultsModel
+    DM._meta.only_save_dirty = True
+
+    dm = DM()
+    await dm.save()
+
+    assert dm.field == 1
+    assert dm.control == 1
+
+    dm_db = await DM.get((DM.field == 1) & (DM.control == 1))
+    assert dm_db.field == 1
+    assert dm_db.control == 1
+
+    # No changes.
+    assert not await dm_db.save()
+
+    dm2 = await DM.create()
+    assert dm2.field == 3  # One extra when fetched from DB.
+    assert dm2.control == 1
+
+    dm._meta.only_save_dirty = False
+
+    dm3 = DM()
+    assert dm3.field == 4
+    assert dm3.control == 1
+    await dm3.save()
+
+    dm3_db = await DM.get(DM.id == dm3.id)
+    assert dm3_db.field == 4
+
+
+async def test_function_coerce(database):
+    db = database
+
+    class M1(Model):
+        data = IntegerField()
+        class Meta:
+            database = db
+
+    class M2(Model):
+        id = IntegerField()
+        class Meta:
+            database = db
+
+    await db.create_tables([M1, M2])
+
+    for i in range(3):
+        await M1.create(data=i)
+        await M2.create(id=i + 1)
+
+    qm1 = M1.select(fn.GROUP_CONCAT(M1.data).coerce(False).alias('data'))
+    qm2 = M2.select(fn.GROUP_CONCAT(M2.id).coerce(False).alias('ids'))
+
+    m1 = await qm1.get()
+    assert m1.data == '0,1,2'
+
+    m2 = await qm2.get()
+    assert m2.ids == '1,2,3'
+
+    await db.drop_tables([M1, M2])
 
 
 # @skip_unless(
@@ -2316,6 +2293,7 @@ async def test_delete_nullable(flushdb):
 #         assert obj, ub)
 
 
+# requires recent peewee
 # async def test_specify_object_id_name():
 #     class User(Model): pass
 #     class T0(Model):

@@ -33,10 +33,18 @@ class AioQuery(Query):
         raise NotImplementedError()
 
     async def __aiter__(self):
-        return await self.execute()
+        print('__aitering__')
+        qr = await self.execute()
+        return await qr.__aiter__()
 
 
 class AioRawQuery(AioQuery, RawQuery):
+
+    def clone(self):
+        query = AioRawQuery(self.model_class, self._sql, *self._params)
+        query._tuples = self._tuples
+        query._dicts = self._dicts
+        return query
 
     async def execute(self):
         if self._qr is None:
@@ -66,12 +74,13 @@ class AioSelectQuery(AioQuery, SelectQuery):
 
     async def count(self, clear_limit=False):
         if self._distinct or self._group_by or self._limit or self._offset:
-            return self.wrapped_count(clear_limit=clear_limit)
+            return await self.wrapped_count(clear_limit=clear_limit)
 
         # defaults to a count() of the primary key
         return await self.aggregate(convert=False) or 0
 
     async def wrapped_count(self, clear_limit=False):
+        print('WRAPPED COUNT')
         clone = self.order_by()
         if clear_limit:
             clone._limit = clone._offset = None
@@ -129,6 +138,7 @@ class AioSelectQuery(AioQuery, SelectQuery):
             self._dirty = False
             return self._qr
         else:
+            print('just return')
             return self._qr
 
     async def iterator(self):

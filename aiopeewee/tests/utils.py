@@ -28,9 +28,22 @@ def assert_query_count(num, ignore_txn=False):
     logger.addHandler(qh)
     try:
         qc0 = len(qh.queries(ignore_txn=ignore_txn))
-        yield qc0
+        yield qh
     finally:
         logger.removeHandler(qh)
         qc1 = len(qh.queries(ignore_txn=ignore_txn))
         print(qc1)
         assert (qc1 - qc0) == num
+
+
+def assert_queries_equal(queries, expected, db):
+    queries.sort()
+    expected.sort()
+    for i in range(len(queries)):
+        sql, params = queries[i]
+        expected_sql, expected_params = expected[i]
+        expected_sql = (expected_sql
+                        .replace('`', db.quote_char)
+                        .replace('%%', db.interpolation))
+        assert sql == expected_sql
+        assert params == expected_params

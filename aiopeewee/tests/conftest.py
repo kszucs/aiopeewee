@@ -16,21 +16,28 @@ def event_loop():
 
 
 @pytest.yield_fixture(scope='session')
-async def tables():
-    tables = [User, Blog, BlogTwo, Comment, EmptyModel, NoPKModel,
-              Category, UserCategory, UniqueMultiField,
-              NonIntModel, Note, Flag, NoteFlagNullable, OrderedModel]
+async def database():
     try:
         await db.connect()
-        await db.create_tables(tables, safe=True)
-        yield tables
+        yield db
+        #await db.create_tables(tables, safe=True)
+        #yield tables
     finally:
-        await db.drop_tables(tables, safe=True)
+        #await db.drop_tables(tables, safe=True)
         await db.close()
 
 
-@pytest.fixture
-async def flushdb(tables):
-    for table in reversed(tables):
-        await table.delete()
-    return True
+@pytest.yield_fixture
+async def flushdb(database):
+    tables = [User, Blog, BlogTwo, Comment, EmptyModel, NoPKModel,
+              Category, UserCategory, UniqueMultiField,
+              NonIntModel, Note, Flag, NoteFlagNullable, OrderedModel,
+              Parent, Orphan, Child, GCModel, DefaultsModel]
+    try:
+        await db.create_tables(tables, safe=True)
+        yield tables
+    finally:
+        await db.drop_tables(tables)
+    # for table in reversed(tables):
+    #     await table.delete()
+    # return True

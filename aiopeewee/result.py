@@ -24,12 +24,17 @@ class AioResultIterator(object):
         return obj
 
 
+from aitertools import aiter
+
+
 class AioQueryResultWrapper(QueryResultWrapper):
 
     async def __aiter__(self):
         if self._populated:
-            return iter(self._result_cache)
+            print('return iterator over result cache')
+            return await aiter(self._result_cache)
         else:
+            print('new result iterator')
             return AioResultIterator(self)
 
     def __await__(self):
@@ -62,6 +67,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
         if not row:
             self._populated = True
             if not getattr(self.cursor, 'name', None):
+                print('closing cursor WHY?')
                 # WHY?
                 await self.cursor.close()
             raise StopAsyncIteration
@@ -76,6 +82,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
         #     yield self.iterate()
 
     async def __anext__(self):
+        print('__anext__')
         if self._idx < self._ct:
             inst = self._result_cache[self._idx]
             self._idx += 1
@@ -97,7 +104,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
         while not self._populated and (n > self._ct):
             try:
                 await self.__anext__()
-            except StopIteration:
+            except StopAsyncIteration:
                 break
 
 

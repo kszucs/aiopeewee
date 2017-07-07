@@ -432,6 +432,36 @@ class NoteFlagNullable(TestModel):
     flag = ForeignKeyField(Flag, null=True, related_name='nullable_notes')
 
 
+class GCModel(TestModel):
+    name = CharField(unique=True)
+    key = CharField()
+    value = CharField()
+    number = IntegerField(default=0)
+
+    class Meta:
+        database = db
+        indexes = (
+            (('key', 'value'), True),
+        )
+
+
+def incrementer():
+    d = {'value': 0}
+    def increment():
+        d['value'] += 1
+        return d['value']
+    return increment
+
+
+class DefaultsModel(TestModel):
+    field = IntegerField(default=incrementer())
+    control = IntegerField(default=1)
+
+    class Meta:
+        database = db
+
+
+
 MODELS = [
     User,
     Blog,

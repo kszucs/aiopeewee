@@ -30,7 +30,7 @@ async def database():
 @pytest.yield_fixture
 async def flushdb(database):
     tables = [User, Blog, BlogTwo, Comment, EmptyModel, NoPKModel,
-              Category, UserCategory, UniqueMultiField,
+              Category, UserCategory, UniqueMultiField, Relationship,
               NonIntModel, Note, Flag, NoteFlagNullable, OrderedModel,
               Parent, Orphan, Child, GCModel, DefaultsModel]
     try:

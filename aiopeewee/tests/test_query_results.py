@@ -534,179 +534,190 @@ async def test_aliasing_values(flushdb):
     assert results == [('u1', 'u1'), ('u2', 'u2')]
 
 
-# class TestJoinedInstanceConstruction(ModelTestCase):
-#     requires = [Blog, User, Relationship]
+async def create_users_blogs():
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
+    await Blog.create(user=u1, title='b1')
+    await Blog.create(user=u2, title='b2')
 
-#     def setUp(self):
-#         super(TestJoinedInstanceConstruction, self).setUp()
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
-#         Blog.create(user=u1, title='b1')
-#         Blog.create(user=u2, title='b2')
 
-#     def test_fk_missing_pk(self):
-#         # Not enough information.
-#         with assert_query_count(1):
-#             q = (Blog
-#                  .select(Blog.title, User.username)
-#                  .join(User)
-#                  .order_by(Blog.title, User.username))
-#             results = []
-#             for blog in q:
-#                 results.append((blog.title, blog.user.username))
-#                 self.assertIsNone(blog.user.id)
-#                 self.assertIsNone(blog.user_id)
-#             assert results, [('b1', 'u1'), ('b2', 'u2')])
+async def test_fk_missing_pk(flushdb):
+    await create_users_blogs()
 
-#     def test_fk_with_pk(self):
-#         with assert_query_count(1):
-#             q = (Blog
-#                  .select(Blog.title, User.username, User.id)
-#                  .join(User)
-#                  .order_by(Blog.title, User.username))
-#             results = []
-#             for blog in q:
-#                 results.append((blog.title, blog.user.username))
-#                 self.assertIsNotNone(blog.user.id)
-#                 self.assertIsNotNone(blog.user_id)
-#             assert results, [('b1', 'u1'), ('b2', 'u2')])
+    # Not enough information.
+    with assert_query_count(1):
+        q = (Blog
+             .select(Blog.title, User.username)
+             .join(User)
+             .order_by(Blog.title, User.username))
+        results = []
+        async for blog in q:
+            results.append((blog.title, blog.user.username))
+            assert blog.user.id is None
+            assert blog.user_id is None
+        assert results == [('b1', 'u1'), ('b2', 'u2')]
 
-#     def test_backref_missing_pk(self):
-#         with assert_query_count(1):
-#             q = (User
-#                  .select(User.username, Blog.title)
-#                  .join(Blog)
-#                  .order_by(User.username, Blog.title))
-#             results = []
-#             for user in q:
-#                 results.append((user.username, user.blog.title))
-#                 self.assertIsNone(user.id)
-#                 self.assertIsNone(user.blog.pk)
-#                 self.assertIsNone(user.blog.user_id)
-#             assert results, [('u1', 'b1'), ('u2', 'b2')])
 
-#     def test_fk_join_expr(self):
-#         with assert_query_count(1):
-#             q = (User
-#                  .select(User.username, Blog.title)
-#                  .join(Blog, on=(User.id == Blog.user).alias('bx'))
-#                  .order_by(User.username))
-#             results = []
-#             for user in q:
-#                 results.append((user.username, user.bx.title))
-#             assert results, [('u1', 'b1'), ('u2', 'b2')])
+async def test_fk_with_pk(flushdb):
+    await create_users_blogs()
 
-#         with assert_query_count(1):
-#             q = (Blog
-#                  .select(Blog.title, User.username)
-#                  .join(User, on=(Blog.user == User.id).alias('ux'))
-#                  .order_by(Blog.title))
-#             results = []
-#             for blog in q:
-#                 results.append((blog.title, blog.ux.username))
-#             assert results, [('b1', 'u1'), ('b2', 'u2')])
+    with assert_query_count(1):
+        q = (Blog
+             .select(Blog.title, User.username, User.id)
+             .join(User)
+             .order_by(Blog.title, User.username))
+        results = []
+        async for blog in q:
+            results.append((blog.title, blog.user.username))
+            assert blog.user.id is not None
+            assert blog.user_id is not None
+        assert results == [('b1', 'u1'), ('b2', 'u2')]
 
-#     def test_aliases(self):
-#         B = Blog.alias()
-#         U = User.alias()
-#         with assert_query_count(1):
-#             q = (U.select(U.username, B.title)
-#                  .join(B, on=(U.id == B.user))
-#                  .order_by(U.username))
-#             results = []
-#             for user in q:
-#                 results.append((user.username, user.blog.title))
-#             assert results, [('u1', 'b1'), ('u2', 'b2')])
 
-#         with assert_query_count(1):
-#             q = (B.select(B.title, U.username)
-#                  .join(U, on=(B.user == U.id))
-#                  .order_by(B.title))
-#             results = []
-#             for blog in q:
-#                 results.append((blog.title, blog.user.username))
-#             assert results, [('b1', 'u1'), ('b2', 'u2')])
+async def test_backref_missing_pk(flushdb):
+    await create_users_blogs()
 
-#         # No explicit join condition.
-#         with assert_query_count(1):
-#             q = (B.select(B.title, U.username)
-#                  .join(U, on=B.user)
-#                  .order_by(B.title))
-#             results = [(blog.title, blog.user.username) for blog in q]
-#             assert results, [('b1', 'u1'), ('b2', 'u2')])
+    with assert_query_count(1):
+        q = (User
+             .select(User.username, Blog.title)
+             .join(Blog)
+             .order_by(User.username, Blog.title))
+        results = []
+        async for user in q:
+            results.append((user.username, user.blog.title))
+            assert user.id is None
+            assert user.blog.pk is None
+            assert user.blog.user_id is None
+        assert results == [('u1', 'b1'), ('u2', 'b2')]
 
-#         # No explicit condition, backref.
-#         Blog.create(user=User.get(User.username == 'u2'), title='b2-2')
-#         with assert_query_count(1):
-#             q = (U.select(U.username, B.title)
-#                  .join(B, on=B.user)
-#                  .order_by(U.username, B.title))
-#             results = [(user.username, user.blog.title) for user in q]
-#             assert
-#                 results,
-#                 [('u1', 'b1'), ('u2', 'b2'), ('u2', 'b2-2')])
 
-#     def test_subqueries(self):
-#         uq = User.select()
-#         bq = Blog.select(Blog.title, Blog.user).alias('bq')
-#         with assert_query_count(1):
-#             q = (User
-#                  .select(User, bq.c.title.bind_to(Blog))
-#                  .join(bq, on=(User.id == bq.c.user_id).alias('blog'))
-#                  .order_by(User.username))
-#             results = []
-#             for user in q:
-#                 results.append((user.username, user.blog.title))
-#             assert results, [('u1', 'b1'), ('u2', 'b2')])
+async def test_fk_join_expr(flushdb):
+    await create_users_blogs()
 
-#     def test_multiple_joins(self):
-#         Blog.delete().execute()
-#         User.delete().execute()
-#         users = [User.create(username='u%s' % i) for i in range(4)]
-#         for from_user, to_user in itertools.combinations(users, 2):
-#             Relationship.create(from_user=from_user, to_user=to_user)
+    with assert_query_count(1):
+        q = (User
+             .select(User.username, Blog.title)
+             .join(Blog, on=(User.id == Blog.user).alias('bx'))
+             .order_by(User.username))
+        results = []
+        async for user in q:
+            results.append((user.username, user.bx.title))
+        assert results == [('u1', 'b1'), ('u2', 'b2')]
 
-#         with assert_query_count(1):
-#             ToUser = User.alias()
-#             q = (Relationship
-#                  .select(Relationship, User, ToUser)
-#                  .join(User, on=Relationship.from_user)
-#                  .switch(Relationship)
-#                  .join(ToUser, on=Relationship.to_user)
-#                  .order_by(User.username, ToUser.username))
+    with assert_query_count(1):
+        q = (Blog
+             .select(Blog.title, User.username)
+             .join(User, on=(Blog.user == User.id).alias('ux'))
+             .order_by(Blog.title))
+        results = []
+        async for blog in q:
+            results.append((blog.title, blog.ux.username))
+        assert results == [('b1', 'u1'), ('b2', 'u2')]
 
-#             results = [(r.from_user.username, r.to_user.username) for r in q]
 
-#         assert results, [
-#             ('u0', 'u1'),
-#             ('u0', 'u2'),
-#             ('u0', 'u3'),
-#             ('u1', 'u2'),
-#             ('u1', 'u3'),
-#             ('u2', 'u3'),
-#         ])
+async def test_aliases(flushdb):
+    await create_users_blogs()
 
-#         with assert_query_count(1):
-#             ToUser = User.alias()
-#             q = (Relationship
-#                  .select(Relationship, User, ToUser)
-#                  .join(User,
-#                        on=(Relationship.from_user == User.id))
-#                  .switch(Relationship)
-#                  .join(ToUser,
-#                        on=(Relationship.to_user == ToUser.id).alias('to_user'))
-#                  .order_by(User.username, ToUser.username))
+    B = Blog.alias()
+    U = User.alias()
+    with assert_query_count(1):
+        q = (U.select(U.username, B.title)
+             .join(B, on=(U.id == B.user))
+             .order_by(U.username))
+        results = []
+        async for user in q:
+            results.append((user.username, user.blog.title))
+        assert results == [('u1', 'b1'), ('u2', 'b2')]
 
-#             results = [(r.from_user.username, r.to_user.username) for r in q]
+    with assert_query_count(1):
+        q = (B.select(B.title, U.username)
+             .join(U, on=(B.user == U.id))
+             .order_by(B.title))
+        results = []
+        async for blog in q:
+            results.append((blog.title, blog.user.username))
+        assert results == [('b1', 'u1'), ('b2', 'u2')]
 
-#         assert results, [
-#             ('u0', 'u1'),
-#             ('u0', 'u2'),
-#             ('u0', 'u3'),
-#             ('u1', 'u2'),
-#             ('u1', 'u3'),
-#             ('u2', 'u3'),
-#         ])
+    # No explicit join condition.
+    with assert_query_count(1):
+        q = (B.select(B.title, U.username)
+             .join(U, on=B.user)
+             .order_by(B.title))
+        results = [(blog.title, blog.user.username) async for blog in q]
+        assert results == [('b1', 'u1'), ('b2', 'u2')]
+
+    # No explicit condition, backref.
+    await Blog.create(user=await User.get(User.username == 'u2'), title='b2-2')
+    with assert_query_count(1):
+        q = (U.select(U.username, B.title)
+             .join(B, on=B.user)
+             .order_by(U.username, B.title))
+        results = [(user.username, user.blog.title) async for user in q]
+        assert results == [('u1', 'b1'), ('u2', 'b2'), ('u2', 'b2-2')]
+
+
+async def test_subqueries(flushdb):
+    await create_users_blogs()
+
+    uq = User.select()
+    bq = Blog.select(Blog.title, Blog.user).alias('bq')
+    with assert_query_count(1):
+        q = (User
+             .select(User, bq.c.title.bind_to(Blog))
+             .join(bq, on=(User.id == bq.c.user_id).alias('blog'))
+             .order_by(User.username))
+        results = []
+        async for user in q:
+            results.append((user.username, user.blog.title))
+        assert results == [('u1', 'b1'), ('u2', 'b2')]
+
+
+async def test_multiple_joins(flushdb):
+    users = [await User.create(username='u%s' % i) for i in range(4)]
+    for from_user, to_user in itertools.combinations(users, 2):
+        await Relationship.create(from_user=from_user, to_user=to_user)
+
+    with assert_query_count(1):
+        ToUser = User.alias()
+        q = (Relationship
+             .select(Relationship, User, ToUser)
+             .join(User, on=Relationship.from_user)
+             .switch(Relationship)
+             .join(ToUser, on=Relationship.to_user)
+             .order_by(User.username, ToUser.username))
+
+        results = [(r.from_user.username, r.to_user.username) async for r in q]
+
+    assert results == [
+        ('u0', 'u1'),
+        ('u0', 'u2'),
+        ('u0', 'u3'),
+        ('u1', 'u2'),
+        ('u1', 'u3'),
+        ('u2', 'u3'),
+    ]
+
+    with assert_query_count(1):
+        ToUser = User.alias()
+        q = (Relationship
+             .select(Relationship, User, ToUser)
+             .join(User,
+                   on=(Relationship.from_user == User.id))
+             .switch(Relationship)
+             .join(ToUser,
+                   on=(Relationship.to_user == ToUser.id).alias('to_user'))
+             .order_by(User.username, ToUser.username))
+
+        results = [(r.from_user.username, r.to_user.username) async for r in q]
+
+    assert results == [
+        ('u0', 'u1'),
+        ('u0', 'u2'),
+        ('u0', 'u3'),
+        ('u1', 'u2'),
+        ('u1', 'u3'),
+        ('u2', 'u3'),
+    ]
 
 
 # class TestQueryResultTypeConversion(ModelTestCase):

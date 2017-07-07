@@ -28,20 +28,20 @@ async def create_users_blogs(n=10, nb=5):
 async def test_select(flushdb):
     await create_users_blogs()
 
-    users = await (User.select()
-                       .where(User.username << ['u0', 'u5'])
-                       .order_by(User.username))
-    assert [u.username for u in users] == ['u0', 'u5']
+    users = (User.select()
+                 .where(User.username << ['u0', 'u5'])
+                 .order_by(User.username))
+    assert [u.username async for u in users] == ['u0', 'u5']
 
-    blogs = await Blog.select().join(User).where(
+    blogs = Blog.select().join(User).where(
         (User.username << ['u0', 'u3']) &
         (Blog.content == '4')
     ).order_by(Blog.title)
 
-    assert [b.title for b in blogs] == ['b-0-4', 'b-3-4']
+    assert [b.title async for b in blogs] == ['b-0-4', 'b-3-4']
 
-    users = await User.select().paginate(2, 3)
-    assert [u.username for u in users] == ['u3', 'u4', 'u5']
+    users = User.select().paginate(2, 3)
+    assert [u.username async for u in users] == ['u3', 'u4', 'u5']
 
 
 async def test_select_all(flushdb):

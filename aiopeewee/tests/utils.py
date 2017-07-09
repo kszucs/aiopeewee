@@ -32,7 +32,6 @@ def assert_query_count(num, ignore_txn=False):
     finally:
         logger.removeHandler(qh)
         qc1 = len(qh.queries(ignore_txn=ignore_txn))
-        print(qc1)
         assert (qc1 - qc0) == num
 
 

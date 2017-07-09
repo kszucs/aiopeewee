@@ -32,8 +32,8 @@ class AioQuery(Query):
     def __iter__(self):
         raise NotImplementedError()
 
+    # TODO: wath out for PEP492
     async def __aiter__(self):
-        print('__aitering__')
         qr = await self.execute()
         return await qr.__aiter__()
 
@@ -80,7 +80,6 @@ class AioSelectQuery(AioQuery, SelectQuery):
         return await self.aggregate(convert=False) or 0
 
     async def wrapped_count(self, clear_limit=False):
-        print('WRAPPED COUNT')
         clone = self.order_by()
         if clear_limit:
             clone._limit = clone._offset = None
@@ -89,15 +88,6 @@ class AioSelectQuery(AioQuery, SelectQuery):
         wrapped = 'SELECT COUNT(1) FROM (%s) AS wrapped_select' % sql
         rq = self.model_class.raw(wrapped, *params)
         return await rq.scalar() or 0
-
-    # async def all(self):
-    #     qr = await
-    #     return await qr.all()
-
-    async def __await__(self):
-        qr = await self.execute()
-        return qr.__await__()
-        #return self.all().__await__()
 
     async def exists(self):
         clone = self.paginate(1, 1)
@@ -140,7 +130,6 @@ class AioSelectQuery(AioQuery, SelectQuery):
             self._dirty = False
             return self._qr
         else:
-            print('just return')
             return self._qr
 
     async def iterator(self):
@@ -188,12 +177,12 @@ class AioUpdateQuery(_AioWriteQuery, UpdateQuery):
         else:
             return self.database.rows_affected(await self._execute())
 
-    async def __aiter__(self):
+    def __aiter__(self):
         if not self.model_class._meta.database.returning_clause:
             raise ValueError('UPDATE queries cannot be iterated over unless '
                              'they specify a RETURNING clause, which is not '
                              'supported by your database.')
-        return await self.execute()
+        return self.execute()
 
 
 class AioInsertQuery(_AioWriteQuery, InsertQuery):

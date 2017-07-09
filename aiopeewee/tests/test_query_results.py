@@ -7,7 +7,7 @@ from utils import assert_queries_equal, assert_query_count
 from peewee import ModelQueryResultWrapper
 from peewee import NaiveQueryResultWrapper
 
-from aitertools import aiter, anext
+from aitertools import aiter, anext, alist
 from aiopeewee.result import AioNaiveQueryResultWrapper, AioModelQueryResultWrapper
 
 #from playhouse.tests.base import ModelTestCase
@@ -203,7 +203,7 @@ async def test_iterator_extended(flushdb):
 
 async def test_fill_cache(flushdb):
     def assert_usernames(qr, n):
-        exp = ['u%d' % i for i in range(1, n+1)]
+        exp = ['u%d' % i for i in range(1, n + 1)]
         assert [u.username for u in qr._result_cache] == exp
 
     await User.create_users(20)
@@ -311,6 +311,7 @@ async def test_naive(flushdb):
     assert isinstance(users._qr, AioNaiveQueryResultWrapper)
 
     users = User.select(User, Blog).join(Blog).naive()
+
     assert [u.username async for u in users] == ['u1', 'u2']
     assert [u.title async for u in users] == ['b1', 'b2']
 
@@ -473,6 +474,7 @@ async def test_tuples_dicts(flushdb):
 #         # Getting the last user will fill the cache.
 #         assertUser(query, 9)
 #         assert len(qr._result_cache), 10)
+
 
 async def test_prepared(flushdb):
     for i in range(2):
@@ -720,260 +722,265 @@ async def test_multiple_joins(flushdb):
     ]
 
 
-# class TestQueryResultTypeConversion(ModelTestCase):
-#     requires = [User]
+async def create_users():
+    for i in range(3):
+        await User.create(username='u%d' % i)
 
-#     def setUp(self):
-#         super(TestQueryResultTypeConversion, self).setUp()
-#         for i in range(3):
-#             User.create(username='u%d' % i)
 
-#     def assertNames(self, query, expected, attr='username'):
-#         id_field = query.model_class.id
-#         assert
-#             [getattr(item, attr) for item in query.order_by(id_field)],
-#             expected)
+async def assert_names(query, expected, attr='username'):
+    id_field = query.model_class.id
+    result = [getattr(item, attr) async for item in query.order_by(id_field)]
+    assert result == expected
 
-#     def test_simple_select(self):
-#         query = UpperUser.select()
-#         self.assertNames(query, ['U0', 'U1', 'U2'])
 
-#         query = User.select()
-#         self.assertNames(query, ['u0', 'u1', 'u2'])
+async def test_simple_select(flushdb):
+    await create_users()
 
-#     def test_with_alias(self):
-#         # Even when aliased to a different attr, the column is coerced.
-#         query = UpperUser.select(UpperUser.username.alias('foo'))
-#         self.assertNames(query, ['U0', 'U1', 'U2'], 'foo')
+    query = UpperUser.select()
+    await assert_names(query, ['U0', 'U1', 'U2'])
 
-#     def test_scalar(self):
-#         max_username = (UpperUser
-#                         .select(fn.Max(UpperUser.username))
-#                         .scalar(convert=True))
-#         assert max_username, 'U2')
+    query = User.select()
+    await assert_names(query, ['u0', 'u1', 'u2'])
 
-#         max_username = (UpperUser
-#                         .select(fn.Max(UpperUser.username))
-#                         .scalar())
-#         assert max_username, 'u2')
 
-#     def test_function(self):
-#         substr = fn.SubStr(UpperUser.username, 1, 3)
+async def test_with_alias(flushdb):
+    await create_users()
 
-#         # Being the first parameter of the function, it meets the special-case
-#         # criteria.
-#         query = UpperUser.select(substr.alias('foo'))
-#         self.assertNames(query, ['U0', 'U1', 'U2'], 'foo')
+    # Even when aliased to a different attr, the column is coerced.
+    query = UpperUser.select(UpperUser.username.alias('foo'))
+    await assert_names(query, ['U0', 'U1', 'U2'], 'foo')
 
-#         query = UpperUser.select(substr.coerce(False).alias('foo'))
-#         self.assertNames(query, ['u0', 'u1', 'u2'], 'foo')
 
-#         query = UpperUser.select(substr.coerce(False).alias('username'))
-#         self.assertNames(query, ['u0', 'u1', 'u2'])
+async def test_scalar(flushdb):
+    await create_users()
 
-#         query = UpperUser.select(fn.Lower(UpperUser.username).alias('username'))
-#         self.assertNames(query, ['U0', 'U1', 'U2'])
+    max_username = await (UpperUser.select(fn.Max(UpperUser.username))
+                                   .scalar(convert=True))
+    assert max_username == 'U2'
 
-#         query = UpperUser.select(
-#             fn.Lower(UpperUser.username).alias('username').coerce(False))
-#         self.assertNames(query, ['u0', 'u1', 'u2'])
+    max_username = await (UpperUser.select(fn.Max(UpperUser.username))
+                                   .scalar())
+    assert max_username == 'u2'
 
-#         # Since it is aliased to an existing column, we will use that column's
-#         # coerce.
-#         query = UpperUser.select(
-#             fn.SubStr(fn.Lower(UpperUser.username), 1, 3).alias('username'))
-#         self.assertNames(query, ['U0', 'U1', 'U2'])
 
-#         query = UpperUser.select(
-#             fn.SubStr(fn.Lower(UpperUser.username), 1, 3).alias('foo'))
-#         self.assertNames(query, ['u0', 'u1', 'u2'], 'foo')
+async def test_function(flushdb):
+    await create_users()
 
-# class TestModelQueryResultWrapper(ModelTestCase):
-#     requires = [TestModelA, TestModelB, TestModelC, User, Blog]
+    substr = fn.SubStr(UpperUser.username, 1, 3)
 
-#     data = (
-#         (TestModelA, (
-#             ('pk1', 'a1'),
-#             ('pk2', 'a2'),
-#             ('pk3', 'a3'))),
-#         (TestModelB, (
-#             ('pk1', 'b1'),
-#             ('pk2', 'b2'),
-#             ('pk3', 'b3'))),
-#         (TestModelC, (
-#             ('pk1', 'c1'),
-#             ('pk2', 'c2'))),
-#     )
+    # Being the first parameter of the function, it meets the special-case
+    # criteria.
+    query = UpperUser.select(substr.alias('foo'))
+    await assert_names(query, ['U0', 'U1', 'U2'], 'foo')
 
-#     def setUp(self):
-#         super(TestModelQueryResultWrapper, self).setUp()
-#         for model_class, model_data in self.data:
-#             for pk, data in model_data:
-#                 model_class.create(field=pk, data=data)
+    query = UpperUser.select(substr.coerce(False).alias('foo'))
+    await assert_names(query, ['u0', 'u1', 'u2'], 'foo')
 
-#     def test_join_expr(self):
-#         def get_query(join_type=JOIN.INNER):
-#             sq = (TestModelA
-#                   .select(TestModelA, TestModelB, TestModelC)
-#                   .join(
-#                       TestModelB,
-#                       on=(TestModelA.field == TestModelB.field).alias('rel_b'))
-#                   .join(
-#                       TestModelC,
-#                       join_type=join_type,
-#                       on=(TestModelB.field == TestModelC.field))
-#                   .order_by(TestModelA.field))
-#             return sq
+    query = UpperUser.select(substr.coerce(False).alias('username'))
+    await assert_names(query, ['u0', 'u1', 'u2'])
 
-#         sq = get_query()
-#         assert sq.count(), 2)
+    query = UpperUser.select(fn.Lower(UpperUser.username).alias('username'))
+    await assert_names(query, ['U0', 'U1', 'U2'])
 
-#         with assert_query_count(1):
-#             results = list(sq)
-#             expected = (('b1', 'c1'), ('b2', 'c2'))
-#             for i, (b_data, c_data) in enumerate(expected):
-#                 assert results[i].rel_b.data, b_data)
-#                 assert results[i].rel_b.field.data, c_data)
+    query = UpperUser.select(
+        fn.Lower(UpperUser.username).alias('username').coerce(False))
+    await assert_names(query, ['u0', 'u1', 'u2'])
 
-#         sq = get_query(JOIN.LEFT_OUTER)
-#         assert sq.count(), 3)
+    # Since it is aliased to an existing column, we will use that column's
+    # coerce.
+    query = UpperUser.select(
+        fn.SubStr(fn.Lower(UpperUser.username), 1, 3).alias('username'))
+    await assert_names(query, ['U0', 'U1', 'U2'])
 
-#         with assert_query_count(1):
-#             results = list(sq)
-#             expected = (('b1', 'c1'), ('b2', 'c2'), ('b3', None))
-#             for i, (b_data, c_data) in enumerate(expected):
-#                 assert results[i].rel_b.data, b_data)
-#                 assert results[i].rel_b.field.data, c_data)
+    query = UpperUser.select(
+        fn.SubStr(fn.Lower(UpperUser.username), 1, 3).alias('foo'))
+    await assert_names(query, ['u0', 'u1', 'u2'], 'foo')
 
-#     def test_backward_join(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
-#         for user in (u1, u2):
-#             Blog.create(title='b-%s' % user.username, user=user)
 
-#         # Create an additional blog for user 2.
-#         Blog.create(title='b-u2-2', user=u2)
+async def create_test_models():
+    data = (
+        (TestModelA, (
+            ('pk1', 'a1'),
+            ('pk2', 'a2'),
+            ('pk3', 'a3'))),
+        (TestModelB, (
+            ('pk1', 'b1'),
+            ('pk2', 'b2'),
+            ('pk3', 'b3'))),
+        (TestModelC, (
+            ('pk1', 'c1'),
+            ('pk2', 'c2'))),
+    )
+    for model_class, model_data in data:
+        for pk, data in model_data:
+            await model_class.create(field=pk, data=data)
 
-#         res = (User
-#                .select(User.username, Blog.title)
-#                .join(Blog)
-#                .order_by(User.username.asc(), Blog.title.asc()))
-#         assert [(u.username, u.blog.title) for u in res], [
-#             ('u1', 'b-u1'),
-#             ('u2', 'b-u2'),
-#             ('u2', 'b-u2-2')])
 
-#     def test_joins_with_aliases(self):
-#         u1 = User.create(username='u1')
-#         u2 = User.create(username='u2')
-#         b1_1 = Blog.create(user=u1, title='b1-1')
-#         b1_2 = Blog.create(user=u1, title='b1-2')
-#         b2_1 = Blog.create(user=u2, title='b2-1')
+async def test_join_expr(flushdb):
+    def get_query(join_type=JOIN.INNER):
+        sq = (TestModelA
+              .select(TestModelA, TestModelB, TestModelC)
+              .join(
+                  TestModelB,
+                  on=(TestModelA.field == TestModelB.field).alias('rel_b'))
+              .join(
+                  TestModelC,
+                  join_type=join_type,
+                  on=(TestModelB.field == TestModelC.field))
+              .order_by(TestModelA.field))
+        return sq
 
-#         UserAlias = User.alias()
-#         BlogAlias = Blog.alias()
+    await create_test_models()
+    sq = get_query()
+    assert await sq.count() == 2
 
-#         def assertExpectedQuery(query, is_user_query):
-#             accum = []
+    with assert_query_count(1):
+        results = await alist(sq)
+        expected = (('b1', 'c1'), ('b2', 'c2'))
+        for i, (b_data, c_data) in enumerate(expected):
+            assert results[i].rel_b.data == b_data
+            assert results[i].rel_b.field.data == c_data
 
-#             with assert_query_count(1):
-#                 if is_user_query:
-#                     for user in query:
-#                         accum.append((user.username, user.blog.title))
-#                 else:
-#                     for blog in query:
-#                         accum.append((blog.user.username, blog.title))
+    sq = get_query(JOIN.LEFT_OUTER)
+    assert await sq.count() == 3
 
-#             assert accum, [
-#                 ('u1', 'b1-1'),
-#                 ('u1', 'b1-2'),
-#                 ('u2', 'b2-1'),
-#             ])
+    with assert_query_count(1):
+        results = await alist(sq)
+        expected = (('b1', 'c1'), ('b2', 'c2'), ('b3', None))
+        for i, (b_data, c_data) in enumerate(expected):
+            assert results[i].rel_b.data == b_data
+            assert results[i].rel_b.field.data == c_data
 
-#         combinations = [
-#             (User, BlogAlias, User.id == BlogAlias.user, True),
-#             (User, BlogAlias, BlogAlias.user == User.id, True),
-#             (User, Blog, User.id == Blog.user, True),
-#             (User, Blog, Blog.user == User.id, True),
-#             (User, Blog, None, True),
-#             (Blog, UserAlias, UserAlias.id == Blog.user, False),
-#             (Blog, UserAlias, Blog.user == UserAlias.id, False),
-#             (Blog, User, User.id == Blog.user, False),
-#             (Blog, User, Blog.user == User.id, False),
-#             (Blog, User, None, False),
-#         ]
-#         for Src, JoinModel, predicate, is_user_query in combinations:
-#             query = (Src
-#                      .select(Src, JoinModel)
-#                      .join(JoinModel, on=predicate)
-#                      .order_by(SQL('1, 2')))
-#             assertExpectedQuery(query, is_user_query)
 
-# class TestModelQueryResultForeignKeys(ModelTestCase):
-#     requires = [Parent, Child]
+async def test_backward_join(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
+    for user in (u1, u2):
+        await Blog.create(title='b-%s' % user.username, user=user)
 
-#     def test_foreign_key_assignment(self):
-#         parent = Parent.create(data='p1')
-#         child = Child.create(parent=parent, data='c1')
-#         ParentAlias = Parent.alias()
+    # Create an additional blog for user 2.
+    await Blog.create(title='b-u2-2', user=u2)
 
-#         query = Child.select(Child, ParentAlias)
+    res = (User
+           .select(User.username, Blog.title)
+           .join(Blog)
+           .order_by(User.username.asc(), Blog.title.asc()))
 
-#         ljoin = (ParentAlias.id == Child.parent)
-#         rjoin = (Child.parent == ParentAlias.id)
+    expected = [('u1', 'b-u1'),
+                ('u2', 'b-u2'),
+                ('u2', 'b-u2-2')]
+    assert [(u.username, u.blog.title) async for u in res] == expected
 
-#         lhs_alias = query.join(ParentAlias, on=ljoin)
-#         rhs_alias = query.join(ParentAlias, on=rjoin)
 
-#         self.assertJoins(lhs_alias, [
-#             'INNER JOIN "parent" AS parent '
-#             'ON ("parent"."id" = "child"."parent_id")'])
+async def test_joins_with_aliases(flushdb):
+    u1 = await User.create(username='u1')
+    u2 = await User.create(username='u2')
+    b1_1 = await Blog.create(user=u1, title='b1-1')
+    b1_2 = await Blog.create(user=u1, title='b1-2')
+    b2_1 = await Blog.create(user=u2, title='b2-1')
 
-#         self.assertJoins(rhs_alias, [
-#             'INNER JOIN "parent" AS parent '
-#             'ON ("child"."parent_id" = "parent"."id")'])
+    UserAlias = User.alias()
+    BlogAlias = Blog.alias()
 
-#         with assert_query_count(1):
-#             lchild = lhs_alias.get()
-#             assert lchild.id, child.id)
-#             assert lchild.parent.id, parent.id)
+    async def assert_expected_query(query, is_user_query):
+        accum = []
 
-#         with assert_query_count(1):
-#             rchild = rhs_alias.get()
-#             assert rchild.id, child.id)
-#             assert rchild.parent.id, parent.id)
+        with assert_query_count(1):
+            if is_user_query:
+                async for user in query:
+                    accum.append((user.username, user.blog.title))
+            else:
+                async for blog in query:
+                    accum.append((blog.user.username, blog.title))
+
+        assert accum == [
+            ('u1', 'b1-1'),
+            ('u1', 'b1-2'),
+            ('u2', 'b2-1'),
+        ]
+
+    combinations = [
+        (User, BlogAlias, User.id == BlogAlias.user, True),
+        (User, BlogAlias, BlogAlias.user == User.id, True),
+        (User, Blog, User.id == Blog.user, True),
+        (User, Blog, Blog.user == User.id, True),
+        (User, Blog, None, True),
+        (Blog, UserAlias, UserAlias.id == Blog.user, False),
+        (Blog, UserAlias, Blog.user == UserAlias.id, False),
+        (Blog, User, User.id == Blog.user, False),
+        (Blog, User, Blog.user == User.id, False),
+        (Blog, User, None, False),
+    ]
+    for Src, JoinModel, predicate, is_user_query in combinations:
+        query = (Src
+                 .select(Src, JoinModel)
+                 .join(JoinModel, on=predicate)
+                 .order_by(SQL('1, 2')))
+        await assert_expected_query(query, is_user_query)
+
+
+# requires asssertJoins from base
+# async def test_foreign_key_assignment(flushdb):
+#     parent = await Parent.create(data='p1')
+#     child = await Child.create(parent=parent, data='c1')
+#     ParentAlias = Parent.alias()
+
+#     query = Child.select(Child, ParentAlias)
+
+#     ljoin = (ParentAlias.id == Child.parent)
+#     rjoin = (Child.parent == ParentAlias.id)
+
+#     lhs_alias = query.join(ParentAlias, on=ljoin)
+#     rhs_alias = query.join(ParentAlias, on=rjoin)
+
+#     self.assertJoins(lhs_alias, [
+#         'INNER JOIN "parent" AS parent '
+#         'ON ("parent"."id" = "child"."parent_id")'])
+
+#     self.assertJoins(rhs_alias, [
+#         'INNER JOIN "parent" AS parent '
+#         'ON ("child"."parent_id" = "parent"."id")'])
+
+#     with assert_query_count(1):
+#         lchild = lhs_alias.get()
+#         assert lchild.id, child.id)
+#         assert lchild.parent.id, parent.id)
+
+#     with assert_query_count(1):
+#         rchild = rhs_alias.get()
+#         assert rchild.id, child.id)
+#         assert rchild.parent.id, parent.id)
+
 
 # class TestSelectRelatedForeignKeyToNonPrimaryKey(ModelTestCase):
 #     requires = [Package, PackageItem]
 
-#     def test_select_related(self):
-#         p1 = Package.create(barcode='101')
-#         p2 = Package.create(barcode='102')
-#         pi11 = PackageItem.create(title='p11', package='101')
-#         pi12 = PackageItem.create(title='p12', package='101')
-#         pi21 = PackageItem.create(title='p21', package='102')
-#         pi22 = PackageItem.create(title='p22', package='102')
+async def test_select_related(flushdb):
+    p1 = await Package.create(barcode='101')
+    p2 = await Package.create(barcode='102')
+    pi11 = await PackageItem.create(title='p11', package='101')
+    pi12 = await PackageItem.create(title='p12', package='101')
+    pi21 = await PackageItem.create(title='p21', package='102')
+    pi22 = await PackageItem.create(title='p22', package='102')
 
-#         # missing PackageItem.package_id.
-#         with assert_query_count(1):
-#             items = (PackageItem
-#                      .select(
-#                          PackageItem.id, PackageItem.title, Package.barcode)
-#                      .join(Package)
-#                      .where(Package.barcode == '101')
-#                      .order_by(PackageItem.id))
-#             assert
-#                 [i.package.barcode for i in items],
-#                 ['101', '101'])
+    # missing PackageItem.package_id.
+    with assert_query_count(1):
+        items = (PackageItem
+                 .select(
+                     PackageItem.id, PackageItem.title, Package.barcode)
+                 .join(Package)
+                 .where(Package.barcode == '101')
+                 .order_by(PackageItem.id))
+        assert [i.package.barcode async for i in items] == ['101', '101']
 
-#         with assert_query_count(1):
-#             items = (PackageItem
-#                      .select(
-#                          PackageItem.id, PackageItem.title, PackageItem.package, Package.id)
-#                      .join(Package)
-#                      .where(Package.barcode == '101')
-#                      .order_by(PackageItem.id))
-#             assert [i.package.id for i in items], [p1.id, p1.id])
+    with assert_query_count(1):
+        items = (PackageItem
+                 .select(
+                     PackageItem.id, PackageItem.title, PackageItem.package, Package.id)
+                 .join(Package)
+                 .where(Package.barcode == '101')
+                 .order_by(PackageItem.id))
+        assert [i.package.id async for i in items] == [p1.id, p1.id]
 
 
 # class BaseTestPrefetch(ModelTestCase):

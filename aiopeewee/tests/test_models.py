@@ -3,7 +3,7 @@ import pytest
 
 from utils import assert_query_count, assert_queries_equal
 from functools import partial
-from aitertools import aiter
+from aitertools import aiter, alist
 from models import *
 from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKeyField
 from peewee import ModelOptions
@@ -636,24 +636,24 @@ async def test_dirty_from_query(flushdb):
     u_db = await User.get()
     assert u_db.is_dirty() is False
 
-    b_with_u = await (Blog
-                .select(Blog, User)
-                .join(User)
-                .where(Blog.title == 'b2')
-                .get())
+    b_with_u = await (Blog.select(Blog, User)
+                          .join(User)
+                          .where(Blog.title == 'b2')
+                          .get())
     assert b_with_u.is_dirty() is False
     assert b_with_u.user.is_dirty() is False
 
-    u_with_blogs = (await User
-                    .select(User, Blog)
-                    .join(Blog)
-                    .order_by(Blog.title)
-                    .aggregate_rows())[0]
+    u_with_blogs_q = (User.select(User, Blog)
+                          .join(Blog)
+                          .order_by(Blog.title)
+                          .aggregate_rows())
+    u_with_blogs = (await alist(u_with_blogs_q))[0]
     assert u_with_blogs.is_dirty() is False
-    async for blog in u_with_blogs.blog_set:
+
+    for blog in u_with_blogs.blog_set:
         assert blog.is_dirty() is False
 
-    b_with_users = await (Blog
+    b_with_users = await alist(Blog
                     .select(Blog, User)
                     .join(User)
                     .order_by(Blog.title)
@@ -1166,17 +1166,18 @@ async def test_annotate_int(flushdb):
     users = await create_user_blogs()
     annotated = await User.select().annotate(
         Blog, fn.Count(Blog.pk).alias('ct'))
-    for i, user in enumerate(annotated):
+    i = 0
+    async for user in annotated:
         assert user.ct == 2
         assert user.username == 'u-%d' % i
+        i += 1
 
 
 async def test_annotate_datetime(flushdb):
     users = await create_user_blogs()
-    annotated = await (User
-                 .select()
-                 .annotate(Blog, fn.Max(Blog.pub_date).alias('max_pub')))
-    user_0, user_1 = annotated
+    annotated = await (User.select()
+                           .annotate(Blog, fn.Max(Blog.pub_date).alias('max_pub')))
+    user_0, user_1 = await alist(annotated)
     assert user_0.max_pub == datetime.datetime(2013, 1, 2)
     assert user_1.max_pub == datetime.datetime(2013, 1, 4)
 
@@ -1747,14 +1748,14 @@ async def test_model_inheritance_flow(flushdb):
     b = await Blog.create(title='b', user=u)
     b2 = await BlogTwo.create(title='b2', extra_field='foo', user=u)
 
-    assert list(await u.blog_set) == [b]
-    assert list(await u.blogtwo_set) == [b2]
+    assert await alist(u.blog_set) == [b]
+    assert await alist(u.blogtwo_set) == [b2]
 
     assert await Blog.select().count() == 1
     assert await BlogTwo.select().count() == 1
 
-    b_from_db = await Blog.get(Blog.pk==b.pk)
-    b2_from_db = await BlogTwo.get(BlogTwo.pk==b2.pk)
+    b_from_db = await Blog.get(Blog.pk == b.pk)
+    b2_from_db = await BlogTwo.get(BlogTwo.pk == b2.pk)
 
     assert await b_from_db.user == u
     assert await b2_from_db.user == u

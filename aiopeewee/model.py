@@ -60,7 +60,6 @@ class AioModel(Model):
 
     @classmethod
     def raw(cls, sql, *params):
-        print('RAW QUERY')
         return AioRawQuery(cls, sql, *params)
 
     @classmethod

@@ -32,7 +32,8 @@ async def flushdb(database):
     tables = [User, Blog, BlogTwo, Comment, EmptyModel, NoPKModel,
               Category, UserCategory, UniqueMultiField, Relationship,
               NonIntModel, Note, Flag, NoteFlagNullable, OrderedModel,
-              Parent, Orphan, Child, GCModel, DefaultsModel]
+              Parent, Orphan, Child, GCModel, DefaultsModel,
+              TestModelA, TestModelB, TestModelC, Package, PackageItem]
     try:
         await db.create_tables(tables, safe=True)
         yield tables

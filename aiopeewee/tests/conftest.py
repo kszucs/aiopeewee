@@ -1,3 +1,4 @@
+import os
 import pytest
 import asyncio
 
@@ -6,6 +7,8 @@ from models import *
 # @pytest.fixture
 # async def loop(event_loop):
 #     return event_loop
+
+mysql_host = os.environ.get('MYSQL_HOST', 'localhost')
 
 
 @pytest.yield_fixture(scope='session')
@@ -17,6 +20,8 @@ def event_loop():
 
 @pytest.yield_fixture(scope='session')
 async def database():
+    db.init('test', user='root', password='',
+            host=mysql_host, port=3306)
     try:
         await db.connect()
         yield db

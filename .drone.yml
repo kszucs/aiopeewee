@@ -8,9 +8,10 @@ services:
 pipeline:
   build:
     image: kszucs/miniconda3
+    environment:
+      - MYSQL_HOST=database
     commands:
       - sleep 10  # wait for mysql to start
-      - pip install uvloop  # not a mandatory dependency
       - python setup.py test
 
   # pypi:

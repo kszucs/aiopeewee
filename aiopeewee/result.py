@@ -35,6 +35,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
             return AioResultIterator(self)
 
     def __await__(self):
+        # TODO: fill_cache with cursor.fetchall
         return alist(self).__await__()
 
     async def count(self):
@@ -78,6 +79,8 @@ class AioQueryResultWrapper(QueryResultWrapper):
         return obj
 
     async def fill_cache(self, n=None):
+        # TODO: cursor.fetchall
+        # if n is None cursor.fetchall else cursor.fetchmany(n)
         n = n or float('Inf')
         if n < 0:
             raise ValueError('Negative values are not supported.')

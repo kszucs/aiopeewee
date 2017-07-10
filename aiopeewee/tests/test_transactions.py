@@ -18,6 +18,7 @@ from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKe
 from aiopeewee import AioModel as Model
 from aiopeewee import AioMySQLDatabase
 
+from models import db, User, Blog, UniqueModel
 
 pytestmark = pytest.mark.asyncio
 
@@ -208,32 +209,37 @@ pytestmark = pytest.mark.asyncio
 #         self.assertEqual(User.select().count(), 1)
 #         self.assertEqual(Blog.select().count(), 1)
 
-#     def test_context_mgr(self):
-#         def do_will_fail():
-#             with test_db.transaction():
-#                 User.create(username='u1')
-#                 Blog.create() # no blog, will raise an error
+# async def test_context_mgr(flushdb):
+#     async def do_will_fail():
+#         #TODO it was db.transaction()
+#         async with db.atomic():
+#             await User.create(username='u1')
+#             await Blog.create() # no blog, will raise an error
 
-#         self.assertRaises(IntegrityError, do_will_fail)
-#         self.assertEqual(Blog.select().count(), 0)
+#     with pytest.raises(IntegrityError):
+#         await do_will_fail()
 
-#         def do_will_succeed():
-#             with transaction(test_db):
-#                 u = User.create(username='u1')
-#                 Blog.create(title='b1', user=u)
+#     assert await Blog.select().count() == 0
 
-#         do_will_succeed()
-#         self.assertEqual(User.select().count(), 1)
-#         self.assertEqual(Blog.select().count(), 1)
+#     async def do_will_succeed():
+#         #TODO it was db.atomic()
+#         async with db.atomic():
+#             u = await User.create(username='u1')
+#             await Blog.create(title='b1', user=u)
 
-#         def do_manual_rollback():
-#             with test_db.transaction() as txn:
-#                 User.create(username='u2')
-#                 txn.rollback()
+#     await do_will_succeed()
+#     assert await User.select().count() == 1
+#     assert await Blog.select().count() == 1
 
-#         do_manual_rollback()
-#         self.assertEqual(User.select().count(), 1)
-#         self.assertEqual(Blog.select().count(), 1)
+#     async def do_manual_rollback():
+#         #TODO it was db.atomic()
+#         async with db.atomic() as txn:
+#             await User.create(username='u2')
+#             await txn.rollback()
+
+#     await do_manual_rollback()
+#     assert await User.select().count() == 1
+#     assert await Blog.select().count() == 1
 
 #     def test_nesting_transactions(self):
 #         @test_db.commit_on_success
@@ -557,33 +563,33 @@ pytestmark = pytest.mark.asyncio
 #         self.assertEqual(User.select().count(), 2)
 #         self.assertEqual(UniqueModel.select().count(), 2)
 
-#     def test_atomic_rollback(self):
-#         with test_db.atomic():
-#             UniqueModel.create(name='charlie')
+# async def test_atomic_rollback(flushdb):
+#     async with db.atomic() as txn:
+#         await UniqueModel.create(name='charlie')
+#         try:
+#             async with txn.atomic():
+#                 await UniqueModel.create(name='charlie')
+#         except IntegrityError:
+#             pass
+#         else:
+#             assert False
+
+#         async with txn.atomic() as txn1:
+#             await UniqueModel.create(name='zaizee')
 #             try:
-#                 with test_db.atomic():
-#                     UniqueModel.create(name='charlie')
+#                 async with txn1.atomic():
+#                     await UniqueModel.create(name='zaizee')
 #             except IntegrityError:
 #                 pass
 #             else:
 #                 assert False
 
-#             with test_db.atomic():
-#                 UniqueModel.create(name='zaizee')
-#                 try:
-#                     with test_db.atomic():
-#                         UniqueModel.create(name='zaizee')
-#                 except IntegrityError:
-#                     pass
-#                 else:
-#                     assert False
+#             await UniqueModel.create(name='mickey')
+#         await UniqueModel.create(name='huey')
 
-#                 UniqueModel.create(name='mickey')
-#             UniqueModel.create(name='huey')
-
-#         names = [um.name for um in
-#                  UniqueModel.select().order_by(UniqueModel.name)]
-#         self.assertEqual(names, ['charlie', 'huey', 'mickey', 'zaizee'])
+#     names = [um.name async for um in
+#              UniqueModel.select().order_by(UniqueModel.name)]
+#     assert names == ['charlie', 'huey', 'mickey', 'zaizee']
 
 
 async def test_atomic_with_delete(flushdb):

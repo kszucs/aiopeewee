@@ -13,6 +13,9 @@ from .result import (AioNaiveQueryResultWrapper, AioModelQueryResultWrapper,
                      AioAggregateQueryResultWrapper)
 
 
+# remove this one, just use autocommit arg in db.execute_sql
+# in case of a transaction, the connection should be bounded
+# to the atomic/transaction context manager
 class AioConnection(object):
 
     def __init__(self, acquirer, exception_wrapper,

@@ -1166,18 +1166,17 @@ async def test_annotate_int(flushdb):
     users = await create_user_blogs()
     annotated = await User.select().annotate(
         Blog, fn.Count(Blog.pk).alias('ct'))
-    i = 0
-    async for user in annotated:
+
+    for i, user in enumerate(annotated):
         assert user.ct == 2
         assert user.username == 'u-%d' % i
-        i += 1
 
 
 async def test_annotate_datetime(flushdb):
     users = await create_user_blogs()
     annotated = await (User.select()
                            .annotate(Blog, fn.Max(Blog.pub_date).alias('max_pub')))
-    user_0, user_1 = await alist(annotated)
+    user_0, user_1 = annotated
     assert user_0.max_pub == datetime.datetime(2013, 1, 2)
     assert user_1.max_pub == datetime.datetime(2013, 1, 4)
 
@@ -1193,8 +1192,6 @@ async def test_aggregate_datetime(flushdb):
     max_created = await (OrderedModel.select()
                                      .aggregate(fn.Max(OrderedModel.created)))
     assert max_created == models[-1].created
-
-
 
 
 # class TestMultiTableFromClause(ModelTestCase):

@@ -417,6 +417,14 @@ class Note(TestModel):
     text = TextField()
 
 
+class NoteTag(TestModel):
+    note = ForeignKeyField(Note)
+    tag = ForeignKeyField(Tag)
+
+    class Meta:
+        primary_key = CompositeKey('note', 'tag')
+
+
 class Flag(TestModel):
     label = TextField()
 

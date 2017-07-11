@@ -1,4 +1,5 @@
 from asyncio import iscoroutine
+from inspect import isawaitable
 from peewee import ForeignKeyField, Field, Node
 from playhouse.shortcuts import _clone_set
 
@@ -82,12 +83,20 @@ async def model_to_dict(model, recurse=True, backrefs=False, only=None,
 
             accum = []
             exclude.add(foreign_key)
-            related_query = getattr(
-                model,
-                related_name + '_prefetch',
-                getattr(model, related_name))
+            related_query = getattr(model, related_name)
 
-            async for rel_obj in related_query:
+            # TODO
+            # related_query = getattr(
+            #     model,
+            #     related_name + '_prefetch',
+            #     getattr(model, related_name))
+
+            if isawaitable(related_query):
+                related_objs = await related_query
+            else:
+                related_objs = related_query
+
+            for rel_obj in related_objs:
                 accum.append(await model_to_dict(
                     rel_obj,
                     recurse=recurse,

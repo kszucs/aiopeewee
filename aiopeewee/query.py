@@ -5,6 +5,9 @@ from peewee import _WriteQuery
 from peewee import RESULTS_TUPLES, RESULTS_DICTS, RESULTS_NAIVE
 
 
+from aitertools import aiter, alist
+
+
 class AioQuery(Query):
 
     async def execute(self):
@@ -27,7 +30,7 @@ class AioQuery(Query):
             return row
 
     def __await__(self):
-        return self.execute().__await__()
+        return alist(self).__await__()
 
     def __iter__(self):
         raise NotImplementedError()
@@ -165,6 +168,9 @@ class _AioWriteQuery(AioQuery, _WriteQuery):
         meta = (self._returning, {self.model_class: []})
         self._qr = ResultWrapper(self.model_class, await self._execute(), meta)
         return self._qr
+
+    def __await__(self):
+        return self.execute().__await__()
 
 
 class AioUpdateQuery(_AioWriteQuery, UpdateQuery):

@@ -12,8 +12,8 @@ class AioQuery(Query):
 
     async def _execute(self):
         sql, params = self.sql()
-        return await self.database.execute_sql(sql, params,
-                                               self.require_commit)
+        async with self.database.get_conn() as conn:
+            return await conn.execute_sql(sql, params, self.require_commit)
 
     async def scalar(self, as_tuple=False, convert=False):
         if convert:
@@ -32,11 +32,19 @@ class AioQuery(Query):
     def __iter__(self):
         raise NotImplementedError()
 
+    # TODO: wath out for PEP492
     async def __aiter__(self):
-        return await self.execute()
+        qr = await self.execute()
+        return await qr.__aiter__()
 
 
 class AioRawQuery(AioQuery, RawQuery):
+
+    def clone(self):
+        query = AioRawQuery(self.model_class, self._sql, *self._params)
+        query._tuples = self._tuples
+        query._dicts = self._dicts
+        return query
 
     async def execute(self):
         if self._qr is None:
@@ -66,7 +74,7 @@ class AioSelectQuery(AioQuery, SelectQuery):
 
     async def count(self, clear_limit=False):
         if self._distinct or self._group_by or self._limit or self._offset:
-            return self.wrapped_count(clear_limit=clear_limit)
+            return await self.wrapped_count(clear_limit=clear_limit)
 
         # defaults to a count() of the primary key
         return await self.aggregate(convert=False) or 0
@@ -80,13 +88,6 @@ class AioSelectQuery(AioQuery, SelectQuery):
         wrapped = 'SELECT COUNT(1) FROM (%s) AS wrapped_select' % sql
         rq = self.model_class.raw(wrapped, *params)
         return await rq.scalar() or 0
-
-    async def all(self):
-        qr = await self.execute()
-        return await qr.all()
-
-    def __await__(self):
-        return self.all().__await__()
 
     async def exists(self):
         clone = self.paginate(1, 1)
@@ -132,7 +133,9 @@ class AioSelectQuery(AioQuery, SelectQuery):
             return self._qr
 
     async def iterator(self):
-        raise NotImplementedError()
+        qr = await self.execute()
+        async for row in qr.iterator():
+            yield row
 
     def __getitem__(self, value):
         raise NotImplementedError()
@@ -174,12 +177,12 @@ class AioUpdateQuery(_AioWriteQuery, UpdateQuery):
         else:
             return self.database.rows_affected(await self._execute())
 
-    async def __aiter__(self):
+    def __aiter__(self):
         if not self.model_class._meta.database.returning_clause:
             raise ValueError('UPDATE queries cannot be iterated over unless '
                              'they specify a RETURNING clause, which is not '
                              'supported by your database.')
-        return await self.execute()
+        return self.execute()
 
 
 class AioInsertQuery(_AioWriteQuery, InsertQuery):
@@ -189,7 +192,7 @@ class AioInsertQuery(_AioWriteQuery, InsertQuery):
         last_id = None
         return_id_list = self._return_id_list
         for row in self._rows:
-            last_id = await (InsertQuery(self.model_class, row)
+            last_id = await (AioInsertQuery(self.model_class, row)
                              .upsert(self._upsert)
                              .execute())
             if return_id_list:

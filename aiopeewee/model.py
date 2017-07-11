@@ -95,6 +95,7 @@ class AioModel(Model):
                 params = dict((k, v) for k, v in kwargs.items()
                               if '__' not in k)
                 params.update(defaults)
+
                 async with cls._meta.database.atomic():
                     return await cls.create(**params), True
             except IntegrityError as exc:

@@ -1,4 +1,6 @@
+from aitertools import aiter
 from collections import OrderedDict
+
 from peewee import QueryResultWrapper, ExtQueryResultWrapper
 from peewee import TuplesQueryResultWrapper, DictQueryResultWrapper
 from peewee import ModelQueryResultWrapper, AggregateQueryResultWrapper
@@ -28,41 +30,26 @@ class AioQueryResultWrapper(QueryResultWrapper):
 
     async def __aiter__(self):
         if self._populated:
-            return iter(self._result_cache)
+            return await aiter(self._result_cache)
         else:
             return AioResultIterator(self)
 
     def __await__(self):
-        return self.all().__await__()
+        # TODO: fill_cache with cursor.fetchall
+        return alist(self).__await__()
 
-    async def all(self):
-        if not self._initialized:
-            self.initialize(self.cursor.description)
-            self._initialized = True
-
-        rows = [self.process_row(row) for row in await self.cursor.fetchall()]
-        return rows
-        self._result_cache = rows
-        self._populated = True
-        self._idx = self._ct = len(rows)
-        return rows
-
-    @property
-    def count(self):
-        raise NotImplementedError()
-        # self.fill_cache()
-        # return self._ct
+    async def count(self):
+        await self.fill_cache()
+        return self._ct
 
     def __len__(self):
         raise NotImplementedError()
-        # return self.count
 
     async def iterate(self):
         row = await self.cursor.fetchone()
         if not row:
             self._populated = True
             if not getattr(self.cursor, 'name', None):
-                # WHY?
                 await self.cursor.close()
             raise StopAsyncIteration
         elif not self._initialized:
@@ -70,10 +57,12 @@ class AioQueryResultWrapper(QueryResultWrapper):
             self._initialized = True
         return self.process_row(row)
 
-    def iterator(self):
-        raise NotImplementedError()
-        # while True:
-        #     yield self.iterate()
+    async def iterator(self):
+        while True:
+            try:
+                yield await self.iterate()
+            except StopAsyncIteration:
+                break
 
     async def __anext__(self):
         if self._idx < self._ct:
@@ -90,6 +79,8 @@ class AioQueryResultWrapper(QueryResultWrapper):
         return obj
 
     async def fill_cache(self, n=None):
+        # TODO: cursor.fetchall
+        # if n is None cursor.fetchall else cursor.fetchmany(n)
         n = n or float('Inf')
         if n < 0:
             raise ValueError('Negative values are not supported.')
@@ -97,7 +88,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
         while not self._populated and (n > self._ct):
             try:
                 await self.__anext__()
-            except StopIteration:
+            except StopAsyncIteration:
                 break
 
 

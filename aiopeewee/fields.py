@@ -75,7 +75,7 @@ class AioManyToManyFieldDescriptor(ManyToManyFieldDescriptor):
         return self.field
 
     def __set__(self, instance, value):
-        raise NotImplementedError()
+        raise NotImplementedError('Use `set()` coroutine instead!')
         # query = self.__get__(instance)
         # query.add(value, clear_existing=True)
 

@@ -6,14 +6,15 @@ AioPeewee
 
 Asyncio interface for peewee_ modeled after torpeewee_
 
-Limitations (hopefully resolved in a couple of weeks):
+Implemented database adapters:
 
-- currently just aiomysql supported
-- untested transactions
+- [x] aiomysql
+- [ ] aiopg
+- [ ] sqlite
 
-More thorough testing is on the way.
+Currently 125 test cases have been ported from peewee, not all of them but constantly increases.
 
-Any feedback would be greatly appreciated!
+Simple Atomic operations (transactions) are also supported, but now well tested.
 
 
 Install
@@ -146,5 +147,3 @@ Converting to dict requires the asyncified version of `model_to_dict`
 
 .. |Build Status| image:: http://drone.lensa.com:8000/api/badges/kszucs/aiopeewee/status.svg
    :target: http://drone.lensa.com:8000/kszucs/pandahouse
-
-

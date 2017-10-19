@@ -1,4 +1,17 @@
-|Build Status|
+|Build Status| |Gitential Code Volume| |Gitential Coding Hours| |Gitential Efficiency|
+
+.. |Gitential Code Volume| image:: https://api.gitential.com/accounts/6/projects/122/badges/code-volume.svg
+   :alt: Gitential Active Contributors
+   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
+   
+.. |Gitential Coding Hours| image:: https://api.gitential.com/accounts/6/projects/122/badges/coding-hours.svg
+   :alt: Gitential Coding Hours
+   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
+   
+.. |Gitential Efficiency| image:: https://api.gitential.com/accounts/6/projects/122/badges/efficiency.svg
+   :alt: Gitential Efficiency
+   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
+
 
 
 AioPeewee

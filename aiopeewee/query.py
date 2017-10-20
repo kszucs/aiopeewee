@@ -4,6 +4,8 @@ from peewee import CompoundSelect, DeleteQuery, UpdateQuery, InsertQuery
 from peewee import _WriteQuery
 from peewee import RESULTS_TUPLES, RESULTS_DICTS, RESULTS_NAIVE
 
+from .utils import alist
+
 
 class AioQuery(Query):
 

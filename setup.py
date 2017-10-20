@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+import versioneer
 from setuptools import setup
 from os.path import exists
 
 
 setup(name='aiopeewee',
-      version='0.4.0',
+      version=versioneer.get_version(),
+      cmdclass=versioneer.get_cmdclass(),
       packages=['aiopeewee'],
       description='Async Peewee',
       url='http://github.com/kszucs/aiopeewee',

@@ -3,12 +3,15 @@ import pytest
 
 from utils import assert_query_count, assert_queries_equal
 from functools import partial
-from aitertools import aiter, alist
+
 from models import *
-from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKeyField
+from peewee import CharField, IntegerField, ForeignKeyField
+from peewee import SQL, fn, R, QueryCompiler
 from peewee import ModelOptions
+
 from aiopeewee import AioModel as Model
 from aiopeewee import AioMySQLDatabase
+from aiopeewee.utils import alist
 
 
 # in_memory_db = database_initializer.get_in_memory_database()
@@ -220,15 +223,6 @@ async def test_raw_fn(flushdb):
     query = User.raw('select count(1) as ct from blog group by user_id')
     results = [x.ct async for x in query]
     assert results == [2, 2, 2]
-
-
-# async def test_model_iter(flushdb):
-#     await create_users_blogs(3, 2)
-#     usernames = [user.username async for user in User]
-#     assert sorted(usernames) == ['u0', 'u1', 'u2']
-
-#     blogs = list(aiter(Blog))
-#     assert len(blogs) == 6
 
 
 async def test_insert_many(flushdb):

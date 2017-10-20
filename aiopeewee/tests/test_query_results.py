@@ -1,14 +1,15 @@
+import sys
 import pytest
 import itertools
-import sys
 
 from models import *
 from utils import assert_queries_equal, assert_query_count
 from peewee import ModelQueryResultWrapper
 from peewee import NaiveQueryResultWrapper
 
-from aitertools import aiter, anext, alist
-from aiopeewee.result import AioNaiveQueryResultWrapper, AioModelQueryResultWrapper
+from aiopeewee.result import (AioNaiveQueryResultWrapper,
+                              AioModelQueryResultWrapper)
+from aiopeewee.utils import anext, alist
 
 #from playhouse.tests.base import ModelTestCase
 #from playhouse.tests.base import skip_test_if

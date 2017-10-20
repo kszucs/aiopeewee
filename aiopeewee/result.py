@@ -1,10 +1,11 @@
-from aitertools import aiter
 from collections import OrderedDict
 
 from peewee import QueryResultWrapper, ExtQueryResultWrapper
 from peewee import TuplesQueryResultWrapper, DictQueryResultWrapper
 from peewee import ModelQueryResultWrapper, AggregateQueryResultWrapper
 from peewee import NaiveQueryResultWrapper
+
+from .utils import AsyncIterWrapper, alist
 
 
 class AioResultIterator(object):
@@ -30,7 +31,7 @@ class AioQueryResultWrapper(QueryResultWrapper):
 
     async def __aiter__(self):
         if self._populated:
-            return await aiter(self._result_cache)
+            return AsyncIterWrapper(self._result_cache)
         else:
             return AioResultIterator(self)
 

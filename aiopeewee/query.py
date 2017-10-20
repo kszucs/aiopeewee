@@ -5,9 +5,6 @@ from peewee import _WriteQuery
 from peewee import RESULTS_TUPLES, RESULTS_DICTS, RESULTS_NAIVE
 
 
-from aitertools import aiter, alist
-
-
 class AioQuery(Query):
 
     async def execute(self):

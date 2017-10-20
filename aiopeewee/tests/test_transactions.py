@@ -12,7 +12,6 @@
 import sys
 import pytest
 from functools import partial
-from aitertools import aiter
 from models import *
 from peewee import CharField, IntegerField, SQL, fn, R, QueryCompiler, ForeignKeyField
 from aiopeewee import AioModel as Model

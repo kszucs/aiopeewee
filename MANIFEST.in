@@ -1,2 +1,7 @@
+include LICENSE
+include README.rst
+include setup.py
 include versioneer.py
 include aiopeewee/_version.py
+
+recursive-include aiopeewee *.py

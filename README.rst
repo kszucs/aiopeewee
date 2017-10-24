@@ -36,6 +36,10 @@ Install
 .. code:: bash
 
     pip install aiopeewee
+    
+    # or
+    
+    conda install aiopeewee
 
 
 Usage

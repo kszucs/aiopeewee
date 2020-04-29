@@ -29,7 +29,7 @@ class AioResultIterator(object):
 
 class AioQueryResultWrapper(QueryResultWrapper):
 
-    async def __aiter__(self):
+    def __aiter__(self):
         if self._populated:
             return AsyncIterWrapper(self._result_cache)
         else:

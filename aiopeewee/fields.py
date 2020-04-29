@@ -17,6 +17,7 @@ class AioManyToManyField(ManyToManyField):
             def callback(through_model):
                 self._through_model = through_model
                 self.add_to_class(model_class, name)
+
             self._through_model.attach_callback(callback)
             return
         elif isinstance(self._through_model, DeferredThroughModel):
@@ -50,10 +51,9 @@ class AioManyToManyField(ManyToManyField):
                      True),)
                 validate_backrefs = False
 
-            attrs = {
-                lhs._meta.name: ForeignKeyField(rel_model=lhs),
-                rhs._meta.name: ForeignKeyField(rel_model=rhs)}
-            attrs['Meta'] = Meta
+            attrs = {lhs._meta.name: ForeignKeyField(rel_model=lhs),
+                     rhs._meta.name: ForeignKeyField(rel_model=rhs),
+                     'Meta': Meta}
 
             self._through_model = type(
                 '%s%sThrough' % (lhs.__name__, rhs.__name__),
@@ -119,22 +119,22 @@ class AioManyToManyQuery(AioSelectQuery, ManyToManyQuery):
         if isinstance(value, SelectQuery):
             subquery = value.select(value.model_class._meta.primary_key)
             return await (fd.through_model
-                            .delete()
-                            .where(
-                                (fd.dest_fk << subquery) &
-                                (fd.src_fk == self._instance.get_id()))
-                            .execute())
+                          .delete()
+                          .where(
+                (fd.dest_fk << subquery) &
+                (fd.src_fk == self._instance.get_id()))
+                          .execute())
         else:
             if not isinstance(value, (list, tuple)):
                 value = [value]
             if not value:
                 return
             return await (fd.through_model
-                            .delete()
-                            .where(
-                                (fd.dest_fk << self._id_list(value)) &
-                                (fd.src_fk == self._instance.get_id()))
-                            .execute())
+                          .delete()
+                          .where(
+                (fd.dest_fk << self._id_list(value)) &
+                (fd.src_fk == self._instance.get_id()))
+                          .execute())
 
     async def clear(self):
         return await (self._field_descriptor.through_model

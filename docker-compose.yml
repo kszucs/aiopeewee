@@ -1,0 +1,25 @@
+version: '3.2'
+
+services:
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: test
+    ports:
+      - 3306:3306
+
+  aiopeewee:
+    image: aiopeewee:${PYTHON_VERSION:-3.6}
+    links:
+      - mysql:mysql
+    environment:
+      - MYSQL_HOST=mysql
+    volumes:
+      - .:/aiopeewee
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.6}
+    command: ["/wait-for-it.sh", "mysql:3306", "--", "python", "setup.py", "test"]

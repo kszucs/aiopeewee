@@ -1,19 +1,3 @@
-|Build Status| |Gitential Code Volume| |Gitential Coding Hours| |Gitential Efficiency|
-
-.. |Gitential Code Volume| image:: https://api.gitential.com/accounts/6/projects/122/badges/code-volume.svg
-   :alt: Gitential Active Contributors
-   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
-   
-.. |Gitential Coding Hours| image:: https://api.gitential.com/accounts/6/projects/122/badges/coding-hours.svg
-   :alt: Gitential Coding Hours
-   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
-   
-.. |Gitential Efficiency| image:: https://api.gitential.com/accounts/6/projects/122/badges/efficiency.svg
-   :alt: Gitential Efficiency
-   :target: https://gitential.com/accounts/6/projects/122/share?uuid=edbf79d4-57fb-4681-9b2e-a6dfd4bc7001&utm_source=shield&utm_medium=shield&utm_campaign=122
-
-
-
 AioPeewee
 =========
 
@@ -36,9 +20,9 @@ Install
 .. code:: bash
 
     pip install aiopeewee
-    
+
     # or
-    
+
     conda install aiopeewee
 
 
@@ -72,8 +56,8 @@ Usage
 
         class Meta:
             database = db
- 
-   
+
+
     # create connection pool
     await db.connect(loop)
 
@@ -150,7 +134,7 @@ Currently the only limitation I'm aware of immidiate setting of instance relatio
 Serializing
 -----------
 
-Converting to dict requires the asyncified version of `model_to_dict` 
+Converting to dict requires the asyncified version of `model_to_dict`
 
 .. code:: python
 
@@ -158,7 +142,7 @@ Converting to dict requires the asyncified version of `model_to_dict`
 
     serialized = await model_to_dict(user)
 
-         
+
 .. _peewee: http://docs.peewee-orm.com/en/latest/
 .. _torpeewee: https://github.com/snower/torpeewee
 

@@ -8,7 +8,7 @@ class AsyncIterWrapper:
     def __init__(self, iterable):
         self._it = iter(iterable)
 
-    async def __aiter__(self):
+    def __aiter__(self):
         return self
 
     async def __anext__(self):

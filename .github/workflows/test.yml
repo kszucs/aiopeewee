@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  build:
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+            MYSQL_ALLOW_EMPTY_PASSWORD: yes
+            MYSQL_DATABASE: test
+        ports:
+            - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    env:
+      MYSQL_HOST: mysql
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Execute Tests
+      run: python setup.py test
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 aiopeewee

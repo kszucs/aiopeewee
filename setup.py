@@ -22,7 +22,7 @@ setup(name='aiopeewee',
           'Programming Language :: Python',
           'Programming Language :: Python :: 3',
       ],
-      install_requires=['peewee', 'aiomysql'],
+      install_requires=['peewee<3.0', 'aiomysql'],
       tests_require=['pytest-asyncio', 'pytest'],
       setup_requires=['pytest-runner'],
       long_description=(open('README.rst').read() if exists('README.rst')
